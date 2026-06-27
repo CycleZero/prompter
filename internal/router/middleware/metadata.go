@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"gin-template/internal/common"
+	"prompter/internal/common"
 
 	"github.com/gin-gonic/gin"
 )

@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"gin-template/infra"
-	"gin-template/internal/domain"
-	"gin-template/internal/router"
-	"gin-template/log"
+	"prompter/infra"
+	"prompter/internal/domain"
+	"prompter/internal/router"
+	"prompter/log"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"

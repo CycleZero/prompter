@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"gin-template/internal/domain"
-	"gin-template/internal/router"
+	"prompter/internal/domain"
+	"prompter/internal/router"
 
 	"github.com/google/wire"
 )

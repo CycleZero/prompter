@@ -1,15 +1,20 @@
 package domain
 
-import "gin-template/internal/domain/demo"
+import (
+	"prompter/internal/domain/demo"
+	"prompter/internal/domain/prompt"
+)
 
 // ServiceHub 服务聚合中心，集中管理所有业务服务
 // 每新增一个业务模块，在此添加对应的 Service 字段
 type ServiceHub struct {
-	DemoService *demo.DemoService
+	DemoService   *demo.DemoService
+	PromptService *prompt.PromptService
 }
 
-func NewServiceHub(demoService *demo.DemoService) *ServiceHub {
+func NewServiceHub(demoService *demo.DemoService, promptService *prompt.PromptService) *ServiceHub {
 	return &ServiceHub{
-		DemoService: demoService,
+		DemoService:   demoService,
+		PromptService: promptService,
 	}
 }

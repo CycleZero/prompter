@@ -4,9 +4,9 @@
 package main
 
 import (
-	"gin-template/infra"
-	"gin-template/internal"
-	"gin-template/log"
+	"prompter/infra"
+	"prompter/internal"
+	"prompter/log"
 
 	"github.com/google/wire"
 	"github.com/spf13/viper"

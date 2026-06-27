@@ -1,0 +1,694 @@
+definitions:
+  demo.CreateDemoRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  demo.DemoResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  demo.ListDemoResponse:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/demo.DemoResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  demo.UpdateDemoRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  prompt.ActivePromptResponse:
+    properties:
+      slices:
+        items:
+          $ref: '#/definitions/prompt.ActiveSliceDTO'
+        type: array
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  prompt.ActiveSliceDTO:
+    properties:
+      custom_text:
+        type: string
+      region_id:
+        type: integer
+      slice_id:
+        type: integer
+      sort_order:
+        type: integer
+    type: object
+  prompt.ComboRegionDTO:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      slices:
+        items:
+          $ref: '#/definitions/prompt.ComboSliceDTO'
+        type: array
+      sort_order:
+        type: integer
+    type: object
+  prompt.ComboSliceDTO:
+    properties:
+      content:
+        type: string
+      id:
+        type: integer
+      origin_language:
+        type: string
+      sort_order:
+        type: integer
+      target_language:
+        type: string
+      translated_content:
+        type: string
+    type: object
+  prompt.ComboTreeResponse:
+    properties:
+      regions:
+        items:
+          $ref: '#/definitions/prompt.ComboRegionDTO'
+        type: array
+    type: object
+  prompt.CreateRegionRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - name
+    type: object
+  prompt.CreateSliceRequest:
+    properties:
+      content:
+        type: string
+      origin_language:
+        type: string
+      region_ids:
+        description: 所属类别列表
+        items:
+          type: integer
+        type: array
+      target_language:
+        type: string
+      translated_content:
+        type: string
+    required:
+    - content
+    type: object
+  prompt.ListRecordResponse:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/prompt.RecordResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  prompt.PersistRecordResponse:
+    properties:
+      created_at:
+        type: string
+      external_id:
+        type: string
+      full_content:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+    type: object
+  prompt.RecordResponse:
+    properties:
+      created_at:
+        type: string
+      external_id:
+        type: string
+      full_content:
+        type: string
+      id:
+        type: integer
+      slices:
+        items:
+          $ref: '#/definitions/prompt.RecordSliceResponse'
+        type: array
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  prompt.RecordSliceResponse:
+    properties:
+      content:
+        description: 实际使用的文本（可能被 CustomText 覆盖）
+        type: string
+      custom_text:
+        description: 覆盖文本（原始）
+        type: string
+      region_id:
+        type: integer
+      region_name:
+        type: string
+      slice_id:
+        type: integer
+      sort_order:
+        type: integer
+    type: object
+  prompt.RegionResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  prompt.SliceListResponse:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/prompt.SliceResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  prompt.SliceResponse:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      origin_language:
+        type: string
+      target_language:
+        type: string
+      translated_content:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  prompt.SliceTypeResponse:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/prompt.SliceTypeResponse'
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+      parent_id:
+        type: integer
+      sort_order:
+        type: integer
+    type: object
+  prompt.SliceTypeTreeResponse:
+    properties:
+      types:
+        items:
+          $ref: '#/definitions/prompt.SliceTypeResponse'
+        type: array
+    type: object
+  prompt.UpdateActivePromptRequest:
+    properties:
+      slices:
+        items:
+          $ref: '#/definitions/prompt.ActiveSliceDTO'
+        type: array
+      title:
+        type: string
+    required:
+    - slices
+    type: object
+  prompt.UpdateRegionRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  prompt.UpdateSliceRequest:
+    properties:
+      content:
+        type: string
+      origin_language:
+        type: string
+      target_language:
+        type: string
+      translated_content:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/active-prompt:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.ActivePromptResponse'
+      summary: 获取活动 Prompt
+      tags:
+      - prompt
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/prompt.UpdateActivePromptRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 更新活动 Prompt
+      tags:
+      - prompt
+  /api/combo/tree:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.ComboTreeResponse'
+      summary: 获取组合树
+      tags:
+      - prompt
+  /api/demo:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/demo.ListDemoResponse'
+      summary: 获取 Demo 列表
+      tags:
+      - demo
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/demo.CreateDemoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/demo.DemoResponse'
+      summary: 创建 Demo
+      tags:
+      - demo
+  /api/demo/{id}:
+    delete:
+      parameters:
+      - description: Demo ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 删除 Demo
+      tags:
+      - demo
+    get:
+      parameters:
+      - description: Demo ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/demo.DemoResponse'
+      summary: 获取 Demo
+      tags:
+      - demo
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Demo ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/demo.UpdateDemoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/demo.DemoResponse'
+      summary: 更新 Demo
+      tags:
+      - demo
+  /api/records:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.ListRecordResponse'
+      summary: 获取记录列表
+      tags:
+      - prompt
+  /api/records/{id}:
+    delete:
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 删除记录
+      tags:
+      - prompt
+    get:
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.RecordResponse'
+      summary: 获取记录详情
+      tags:
+      - prompt
+  /api/records/{uuid}:
+    post:
+      parameters:
+      - description: ComfyUI生成的UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.PersistRecordResponse'
+      summary: 持久化记录
+      tags:
+      - prompt
+  /api/regions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/prompt.RegionResponse'
+            type: array
+      summary: 获取类别列表
+      tags:
+      - prompt
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/prompt.CreateRegionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.RegionResponse'
+      summary: 创建类别
+      tags:
+      - prompt
+  /api/regions/{id}:
+    delete:
+      parameters:
+      - description: 类别ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 删除类别
+      tags:
+      - prompt
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 类别ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/prompt.UpdateRegionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.RegionResponse'
+      summary: 更新类别
+      tags:
+      - prompt
+  /api/slice-types:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.SliceTypeTreeResponse'
+      summary: 获取语义分类树
+      tags:
+      - prompt
+  /api/slices:
+    get:
+      parameters:
+      - description: 语义分类ID
+        in: query
+        name: type_id
+        type: integer
+      - description: 类别ID
+        in: query
+        name: region_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.SliceListResponse'
+      summary: 获取提示词块列表
+      tags:
+      - prompt
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/prompt.CreateSliceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.SliceResponse'
+      summary: 创建提示词块
+      tags:
+      - prompt
+  /api/slices/{id}:
+    delete:
+      parameters:
+      - description: 提示词块ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 删除提示词块
+      tags:
+      - prompt
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 提示词块ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/prompt.UpdateSliceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/prompt.SliceResponse'
+      summary: 更新提示词块
+      tags:
+      - prompt
+swagger: "2.0"

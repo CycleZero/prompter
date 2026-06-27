@@ -1,8 +1,8 @@
 package demo
 
 import (
-	"gin-template/infra"
-	"gin-template/model"
+	"prompter/infra"
+	"prompter/model"
 
 	"gorm.io/gorm"
 )

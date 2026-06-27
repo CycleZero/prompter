@@ -6,5 +6,11 @@ config.yaml
 wire_gen.go
 
 data/log/
-log/
+#log/
 data/
+
+.omo/
+
+opencode.json
+
+web/node_modules/

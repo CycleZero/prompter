@@ -1,29 +1,45 @@
+# ============================================================
+# Prompter 配置文件
+# 复制为 config.yaml 后修改
+# ============================================================
+
+# 数据源配置
 data:
+  # MySQL 数据库配置
   db:
     host: localhost
     port: 3306
     user: root
     password: your_password
-    db_name: gin_template
+    db_name: prompter
+  # Redis 缓存配置（活动 Prompt 存储）
   redis:
     host: localhost
     port: 6379
     password: ""
 
+# 服务器配置
 server:
   http:
     host: 0.0.0.0
     port: 8000
+    # 性能分析（开发环境建议开启）
     pprof:
       enable: true
       port: 6060
       host: 0.0.0.0
 
-log:
-  mode: dev       # dev | prod
-  level: debug    # debug | info | warn | error
-  dir: ./data/log
+# JWT 认证配置
+auth:
+  jwt_secret: your-jwt-secret-change-in-production
 
+# 日志配置
+log:
+  mode: dev       # dev=开发模式(彩色控制台) | prod=生产模式(JSON)
+  level: debug    # debug | info | warn | error
+  dir: ./data/log # 日志文件目录
+
+# 应用配置
 app:
-  dev_mode: true
-  enable_db_debug: true
+  dev_mode: true        # 开发模式
+  enable_db_debug: true # 数据库调试日志（开发环境建议开启）

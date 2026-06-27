@@ -1,0 +1,70 @@
+package model
+
+import "gorm.io/gorm"
+
+// Language 提示词语言类型
+type Language string
+
+const (
+	Chinese Language = "chinese"
+	English Language = "english"
+)
+
+// PromptRegion 提示词类别/分区（如：主题、风格、质量词、负面词）
+type PromptRegion struct {
+	gorm.Model
+	Name        string `gorm:"type:varchar(100);uniqueIndex;not null;comment:类别名称" json:"name"`
+	SortOrder   int    `gorm:"type:int;default:0;comment:排序" json:"sort_order"`
+	Description string `gorm:"type:text;comment:描述" json:"description"`
+}
+
+// PromptSlice 提示词块（可复用的文本片段）
+type PromptSlice struct {
+	gorm.Model
+	TypeID            *uint    `gorm:"index;comment:语义分类ID" json:"type_id"`
+	Content           string   `gorm:"type:text;not null;comment:原文内容" json:"content"`
+	TranslatedContent string   `gorm:"type:text;comment:翻译后内容" json:"translated_content"`
+	OriginLanguage    Language `gorm:"type:varchar(20);default:chinese;comment:源语言" json:"origin_language"`
+	TargetLanguage    Language `gorm:"type:varchar(20);default:english;comment:目标语言" json:"target_language"`
+}
+
+// SliceType 语义分类（外部标签体系的分类，如 WeiLin 的"人物→头发"、"画面→画质"）
+type SliceType struct {
+	gorm.Model
+	Name      string `gorm:"type:varchar(100);uniqueIndex;not null;comment:分类名称" json:"name"`
+	ParentID  *uint  `gorm:"index;comment:父分类ID(二级分类)" json:"parent_id"`
+	SortOrder int    `gorm:"type:int;default:0;comment:排序" json:"sort_order"`
+}
+
+// PromptRegionSlice 类别与块的关联（控制块在类别内的排序）
+type PromptRegionSlice struct {
+	gorm.Model
+	RegionID  uint `gorm:"index;not null;comment:类别ID" json:"region_id"`
+	SliceID   uint `gorm:"index;not null;comment:块ID" json:"slice_id"`
+	SortOrder int  `gorm:"type:int;default:0;comment:类别内排序" json:"sort_order"`
+}
+
+// PromptRecord 已保存的完整提示词记录
+type PromptRecord struct {
+	gorm.Model
+	ExternalID  string `gorm:"type:varchar(64);uniqueIndex;not null;comment:ComfyUI传入的UUID" json:"external_id"`
+	Title       string `gorm:"type:varchar(255);comment:标题" json:"title"`
+	FullContent string `gorm:"type:longtext;comment:保存时的完整文本快照" json:"full_content"`
+}
+
+// ActivePrompt 活动 Prompt 的 MySQL 持久化备份（单行表，id=1，Redis 丢失时兜底）
+type ActivePrompt struct {
+	gorm.Model
+	Data string `gorm:"type:longtext;comment:ActivePromptData的JSON序列化" json:"data"`
+}
+
+// PromptRecordSlice 记录与块的关联（含全局排序和可选的覆盖文本）
+type PromptRecordSlice struct {
+	gorm.Model
+	RecordID        uint    `gorm:"index;not null;comment:记录ID" json:"record_id"`
+	SliceID         uint    `gorm:"not null;comment:块ID" json:"slice_id"`
+	RegionID        uint    `gorm:"not null;comment:类别ID" json:"region_id"`
+	SortOrder       int     `gorm:"type:int;default:0;comment:全局组装顺序" json:"sort_order"`
+	RegionSortOrder int     `gorm:"type:int;default:0;comment:Region展示顺序" json:"region_sort_order"`
+	CustomText      *string `gorm:"type:text;comment:覆盖文本(NULL=使用块原文)" json:"custom_text"`
+}

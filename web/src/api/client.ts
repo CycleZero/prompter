@@ -64,4 +64,7 @@ export const api = {
   getComboTree: () => client.get<{ regions: ComboRegion[] }>('/combo/tree'),
   /** 获取片段类型树 */
   getSliceTypes: () => client.get<{ types: SliceType[] }>('/slice-types'),
+  /** 按类型 ID 获取片段列表（便捷方法，等价于 listSlices({ type_id })） */
+  listSlicesByType: (typeId: number) =>
+    client.get<{ list: Slice[]; total: number }>('/slices', { params: { type_id: typeId } }),
 };

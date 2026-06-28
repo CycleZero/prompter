@@ -11,6 +11,13 @@ import {
   Card,
   CardHeader,
   CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import { Menu as MenuIcon, Save, DragIndicator } from '@mui/icons-material';
 import {
@@ -31,23 +38,31 @@ import { CSS } from '@dnd-kit/utilities';
 import { api } from '../api/client';
 import { usePromptStore } from '../store';
 import type {
-  ComboRegion,
-  ComboSlice,
   ActiveSlice,
   ActivePromptRegion,
+  SliceType,
+  Slice,
 } from '../types';
 import { RegionPanel } from '../components/RegionPanel';
 
-/** 编辑器页面 — 主区域为可拖拽排序的 Region 卡片，Slice 以 Chip 形式展示，底部为 Prompt 预览 */
+/** 编辑器页面 — 主区域为可拖拽排序的 Region 卡片，左侧抽屉为基于 SliceType 树的提示词库 */
 export function EditorPage() {
-  const [comboTree, setComboTree] = useState<ComboRegion[]>([]);
+  const [sliceTypes, setSliceTypes] = useState<SliceType[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { title, setTitle, regions, getPromptPreview } = usePromptStore();
   const [status, setStatus] = useState('');
 
-  // 初始化加载组合树和活动 Prompt 数据
+  // Region 选择对话框状态
+  const [selectRegionOpen, setSelectRegionOpen] = useState(false);
+  const [pendingSlice, setPendingSlice] = useState<{
+    typeName: string;
+    slice: Slice;
+  } | null>(null);
+  const [newRegionName, setNewRegionName] = useState('');
+
+  // 初始化加载 SliceType 树和活动 Prompt 数据
   useEffect(() => {
-    api.getComboTree().then((res) => setComboTree(res.data.regions));
+    api.getSliceTypes().then((res) => setSliceTypes(res.data.types));
     api.getActivePrompt().then((res) => {
       if (res.data.regions?.length) {
         setTitle(res.data.title || '');
@@ -56,24 +71,44 @@ export function EditorPage() {
     });
   }, [setTitle]);
 
-  /** 点击提示词库中的片段 -> 添加到对应区域 */
-  const handleSliceClick = (region: ComboRegion, slice: ComboSlice) => {
-    const existing = regions.find((r) => r.region_id === region.id);
-    const s: ActiveSlice = {
-      slice_id: slice.id,
-      sort_order: existing ? existing.slices.length : 0,
-      custom_text: null,
-    };
-    if (existing) {
-      usePromptStore.getState().addSliceToRegion(region.id, s);
-    } else {
+  /** 点击提示词库中的片段 -> 弹出 Region 选择对话框 */
+  const handleSliceClick = (typeName: string, slice: Slice) => {
+    setPendingSlice({ typeName, slice });
+    setNewRegionName(typeName);
+    setSelectRegionOpen(true);
+  };
+
+  /** 确认将片段添加到指定 Region（null 表示新建 Region） */
+  const handleConfirmAdd = (regionId: number | null) => {
+    if (!pendingSlice) return;
+
+    if (regionId === null) {
+      // 新建 Region 并添加片段
       usePromptStore.getState().addRegion({
-        region_id: region.id,
-        region_name: region.name,
+        region_id: Date.now(),
+        region_name: newRegionName || pendingSlice.typeName,
         sort_order: regions.length,
-        slices: [s],
+        slices: [
+          {
+            slice_id: pendingSlice.slice.id,
+            sort_order: 0,
+            custom_text: null,
+          },
+        ],
       });
+    } else {
+      // 添加到已有 Region
+      const region = regions.find((r) => r.region_id === regionId);
+      if (region) {
+        usePromptStore.getState().addSliceToRegion(regionId, {
+          slice_id: pendingSlice.slice.id,
+          sort_order: region.slices.length,
+          custom_text: null,
+        });
+      }
     }
+    setSelectRegionOpen(false);
+    setPendingSlice(null);
   };
 
   /** 保存当前 Prompt 到后端 */
@@ -110,7 +145,13 @@ export function EditorPage() {
   };
 
   return (
-    <Box sx={{ height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      sx={{
+        height: 'calc(100vh - 96px)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* 顶部工具栏 */}
       <Box
         sx={{
@@ -149,7 +190,14 @@ export function EditorPage() {
       </Box>
 
       {/* 主区域：可拖拽排序的 Region 卡片列表 */}
-      <Box sx={{ flexGrow: 1, overflowX: 'hidden', overflowY: 'auto', pb: 1 }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          pb: 1,
+        }}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -200,20 +248,67 @@ export function EditorPage() {
         📝 {preview || '从提示词库选择片段开始构建...'}
       </Paper>
 
-      {/* 左侧抽屉：提示词库 */}
+      {/* 左侧抽屉：基于 SliceType 树的提示词库 */}
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Box sx={{ width: 300, p: 2 }}>
           <Typography variant="h6" gutterBottom>
             提示词库
           </Typography>
           <RegionPanel
-            regions={comboTree}
-            onSliceClick={(r, s) => {
-              handleSliceClick(r, s);
-            }}
+            types={sliceTypes}
+            onSliceClick={handleSliceClick}
           />
         </Box>
       </Drawer>
+
+      {/* Region 选择对话框 */}
+      <Dialog
+        open={selectRegionOpen}
+        onClose={() => setSelectRegionOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>添加到哪个 Region？</DialogTitle>
+        <DialogContent>
+          {regions.length > 0 && (
+            <List dense>
+              {regions.map((r) => (
+                <ListItem
+                  key={r.region_id}
+                  component="div"
+                  onClick={() => handleConfirmAdd(r.region_id)}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    borderRadius: 1,
+                  }}
+                >
+                  <ListItemText
+                    primary={r.region_name}
+                    secondary={`${r.slices.length} 个片段`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+          <Divider sx={{ my: 1 }} />
+          <TextField
+            size="small"
+            label="新建 Region 名称"
+            value={newRegionName}
+            onChange={(e) => setNewRegionName(e.target.value)}
+            fullWidth
+            sx={{ mb: 1 }}
+          />
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => handleConfirmAdd(null)}
+          >
+            + 新建 Region 并添加
+          </Button>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
@@ -230,7 +325,9 @@ function SortableRegionCard({ region }: { region: ActivePromptRegion }) {
 
   // 只做 Y 轴移动，禁止 X 轴位移导致卡片溢出的 bug
   const style = {
-    transform: transform ? `translate3d(0px, ${transform.y}px, 0)` : undefined,
+    transform: transform
+      ? `translate3d(0px, ${transform.y}px, 0)`
+      : undefined,
     transition,
     width: '100%',
   };
@@ -260,7 +357,11 @@ function SortableRegionCard({ region }: { region: ActivePromptRegion }) {
   };
 
   return (
-    <Card ref={setNodeRef} style={style} sx={{ mb: 1, maxWidth: '100%', overflow: 'hidden' }}>
+    <Card
+      ref={setNodeRef}
+      style={style}
+      sx={{ mb: 1, maxWidth: '100%', overflow: 'hidden' }}
+    >
       <CardHeader
         title={region.region_name}
         slotProps={{ title: { variant: 'subtitle2' } }}
@@ -280,17 +381,15 @@ function SortableRegionCard({ region }: { region: ActivePromptRegion }) {
               size="small"
               onClick={() => removeRegion(region.region_id)}
             >
-              <Chip
-                label="×"
-                size="small"
-                sx={{ cursor: 'pointer' }}
-              />
+              <Chip label="×" size="small" sx={{ cursor: 'pointer' }} />
             </IconButton>
           </Box>
         }
         sx={{ py: 0.5, px: 1 }}
       />
-      <CardContent sx={{ pt: 0, pb: 1, px: 1, '&:last-child': { pb: 1 } }}>
+      <CardContent
+        sx={{ pt: 0, pb: 1, px: 1, '&:last-child': { pb: 1 } }}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

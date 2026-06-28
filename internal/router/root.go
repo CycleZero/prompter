@@ -1,10 +1,8 @@
 package router
 
 import (
-	"net/http"
 	"prompter/internal/domain"
 	"prompter/internal/router/middleware"
-	"prompter/web"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,21 +24,13 @@ func RegisterRouter(root gin.IRouter, serviceHub *domain.ServiceHub) {
 	// 全局中间件
 	root.Use(middleware.CORS())
 	root.Use(middleware.AddMetaData())
+	// 前端静态文件中间件（必须在路由注册前，放行 /api /debug，拦截其余请求）
+	root.Use(middleware.FrontendFileHandler())
 
 	// 注册业务路由
 	api := root.Group("/api")
 	RegisterDemoRouter(api, serviceHub)
 	RegisterPromptRouter(api, serviceHub)
-
-	// 前端静态文件（嵌入在二进制中）
-	root.StaticFS("/", http.FS(web.DistFS))
-
-	// SPA fallback：非 /api 路径返回 index.html
-	if engine, ok := root.(*gin.Engine); ok {
-		engine.NoRoute(func(c *gin.Context) {
-			c.FileFromFS("/", http.FS(web.DistFS))
-		})
-	}
 }
 
 // RegisterDemoRouter 注册 Demo 模块路由

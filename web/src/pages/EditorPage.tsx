@@ -24,6 +24,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   rectSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -156,7 +157,7 @@ export function EditorPage() {
         >
           <SortableContext
             items={regions.map((r) => `region-${r.region_id}`)}
-            strategy={rectSortingStrategy}
+            strategy={verticalListSortingStrategy}
           >
             {regions.map((region) => (
               <SortableRegionCard key={region.region_id} region={region} />
@@ -257,7 +258,7 @@ function SortableRegionCard({ region }: { region: ActivePromptRegion }) {
   };
 
   return (
-    <Card ref={setNodeRef} style={style} sx={{ mb: 1, maxWidth: '100%' }}>
+    <Card ref={setNodeRef} style={style} sx={{ mb: 1, maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader
         title={region.region_name}
         slotProps={{ title: { variant: 'subtitle2' } }}

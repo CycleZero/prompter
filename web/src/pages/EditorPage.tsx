@@ -148,7 +148,7 @@ export function EditorPage() {
       </Box>
 
       {/* 主区域：可拖拽排序的 Region 卡片列表 */}
-      <Box sx={{ flexGrow: 1, overflow: 'auto', pb: 1 }}>
+      <Box sx={{ flexGrow: 1, overflowX: 'hidden', overflowY: 'auto', pb: 1 }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -257,7 +257,7 @@ function SortableRegionCard({ region }: { region: ActivePromptRegion }) {
   };
 
   return (
-    <Card ref={setNodeRef} style={style} sx={{ mb: 1 }}>
+    <Card ref={setNodeRef} style={style} sx={{ mb: 1, maxWidth: '100%' }}>
       <CardHeader
         title={region.region_name}
         slotProps={{ title: { variant: 'subtitle2' } }}

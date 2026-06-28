@@ -343,6 +343,19 @@ func (s *PromptService) GetActivePrompt(c *gin.Context) {
 		return
 	}
 
+	// 补全 Slice 的 Content 和 TranslatedContent（兼容老数据或前端遗漏）
+	for i := range active.Regions {
+		for j := range active.Regions[i].Slices {
+			dto := &active.Regions[i].Slices[j]
+			if dto.Content == "" {
+				if sl, err := s.sliceBiz.GetByID(dto.SliceID); err == nil {
+					dto.Content = sl.Content
+					dto.TranslatedContent = sl.TranslatedContent
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, ActivePromptResponse{
 		Title:     active.Title,
 		Regions:   active.Regions,

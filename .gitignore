@@ -14,3 +14,4 @@ data/
 opencode.json
 
 web/node_modules/
+scripts/seed/seed

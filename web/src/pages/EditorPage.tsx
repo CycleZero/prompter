@@ -228,9 +228,11 @@ function SortableRegionCard({ region }: { region: ActivePromptRegion }) {
     transition,
   } = useSortable({ id: `region-${region.region_id}` });
 
+  // 只做 Y 轴移动，禁止 X 轴位移导致卡片溢出的 bug
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: transform ? `translate3d(0px, ${transform.y}px, 0)` : undefined,
     transition,
+    width: '100%',
   };
 
   const removeRegion = usePromptStore((s) => s.removeRegion);

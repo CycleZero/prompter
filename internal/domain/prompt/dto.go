@@ -72,9 +72,11 @@ type SliceListResponse struct {
 
 // ActiveSliceDTO 活动 Prompt 中某个 Region 下的单个 Slice 引用
 type ActiveSliceDTO struct {
-	SliceID    uint    `json:"slice_id"`
-	CustomText *string `json:"custom_text"`
-	SortOrder  int     `json:"sort_order"` // 用户在 Region 内拖拽的顺序
+	SliceID            uint    `json:"slice_id"`
+	Content            string  `json:"content"`             // 原文（供前端直观显示）
+	TranslatedContent  string  `json:"translated_content"`  // 翻译文本（供前端直观显示）
+	CustomText         *string `json:"custom_text"`
+	SortOrder          int     `json:"sort_order"` // 用户在 Region 内拖拽的顺序
 }
 
 // ActivePromptRegionDTO 活动 Prompt 中的 Region 分组（含其下 Slices）

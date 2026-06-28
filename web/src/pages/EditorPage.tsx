@@ -91,17 +91,20 @@ export function EditorPage() {
         slices: [
           {
             slice_id: pendingSlice.slice.id,
+            content: pendingSlice.slice.content,
+            translated_content: pendingSlice.slice.translated_content,
             sort_order: 0,
             custom_text: null,
           },
         ],
       });
     } else {
-      // 添加到已有 Region
       const region = regions.find((r) => r.region_id === regionId);
       if (region) {
         usePromptStore.getState().addSliceToRegion(regionId, {
           slice_id: pendingSlice.slice.id,
+          content: pendingSlice.slice.content,
+          translated_content: pendingSlice.slice.translated_content,
           sort_order: region.slices.length,
           custom_text: null,
         });
@@ -446,8 +449,8 @@ function SortableSliceChip({
     transition,
   };
 
-  // 显示标签文本：优先使用自定义文本，否则显示片段 ID
-  const label = slice.custom_text ?? `#${slice.slice_id}`;
+  // 显示标签文本：自定义文本 > 原文 > ID
+  const label = slice.custom_text ?? slice.content ?? `#${slice.slice_id}`;
 
   return (
     <Box

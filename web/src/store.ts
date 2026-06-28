@@ -8,9 +8,7 @@ interface PromptState {
   regions: ActivePromptRegion[];
 
   // 基础操作
-  /** 设置 Prompt 标题 */
   setTitle: (title: string) => void;
-  /** 批量设置区域列表 */
   setRegions: (regions: ActivePromptRegion[]) => void;
 
   // 片段操作
@@ -121,7 +119,7 @@ export const usePromptStore = create<PromptState>((set, get) => ({
     for (const r of sorted) {
       const sortedSlices = [...r.slices].sort((a, b) => a.sort_order - b.sort_order);
       for (const s of sortedSlices) {
-        parts.push(s.custom_text ?? `[Slice ${s.slice_id}]`);
+        parts.push(s.custom_text ?? s.content);
       }
     }
     return parts.join(', ');

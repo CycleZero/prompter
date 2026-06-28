@@ -22,8 +22,10 @@ export interface Slice {
 // 活动 Prompt 中的单个片段
 export interface ActiveSlice {
   slice_id: number;
-  sort_order: number;
+  content: string;
+  translated_content: string;
   custom_text: string | null;
+  sort_order: number;
 }
 
 // 活动 Prompt 中的区域

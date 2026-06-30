@@ -63,3 +63,20 @@ func (r *SliceRepo) ListByType(typeID uint) ([]*model.PromptSlice, error) {
 	err := r.db.Where("type_id = ?", typeID).Order("id ASC").Find(&slices).Error
 	return slices, err
 }
+
+// GetByIDs 批量按 ID 列表查询 Slice（搜索结果回源 DB 补全字段）
+func (r *SliceRepo) GetByIDs(ids []uint) ([]*model.PromptSlice, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var slices []*model.PromptSlice
+	err := r.db.Where("id IN ?", ids).Find(&slices).Error
+	return slices, err
+}
+
+// ListAll 获取所有 Slice（用于搜索索引全量重建）
+func (r *SliceRepo) ListAll() ([]*model.PromptSlice, error) {
+	var slices []*model.PromptSlice
+	err := r.db.Find(&slices).Error
+	return slices, err
+}

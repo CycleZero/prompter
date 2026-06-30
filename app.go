@@ -21,6 +21,7 @@ type MainApp struct {
 	port         uint
 	host         string
 	data         *infra.Data
+	searchIndex  *infra.SearchIndex
 	RegisterFunc router.RegisterFunc
 }
 
@@ -31,6 +32,7 @@ func NewMainApp(
 	registerFunc router.RegisterFunc,
 	registeredMiddleWire router.RegisteredMiddleWire,
 	data *infra.Data,
+	searchIndex *infra.SearchIndex,
 ) *MainApp {
 	gin.SetMode(gin.DebugMode)
 
@@ -58,6 +60,7 @@ func NewMainApp(
 		host:         vc.GetString("server.http.host"),
 		ServiceHub:   hub,
 		RegisterFunc: registerFunc,
+		searchIndex:  searchIndex,
 	}
 
 	app.printRoutes()
@@ -81,5 +84,8 @@ func (a *MainApp) StartServer() error {
 
 // Close 关闭应用，释放资源
 func (a *MainApp) Close() error {
+	if a.searchIndex != nil {
+		_ = a.searchIndex.Close()
+	}
 	return nil
 }

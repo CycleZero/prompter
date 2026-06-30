@@ -98,6 +98,21 @@ export interface SliceType {
   children: SliceType[];
 }
 
+// 搜索结果中的片段
+export interface SearchSlice {
+  id: number;
+  content: string;
+  translated_content: string;
+  score: number;
+}
+
+// 搜索响应
+export interface SearchSlicesResponse {
+  list: SearchSlice[];
+  total: number;
+  page: number;
+}
+
 // 分页响应
 export interface PaginatedResponse<T> {
   list: T[];

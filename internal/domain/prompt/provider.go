@@ -14,5 +14,6 @@ var ProviderSet = wire.NewSet(
 	NewDraftBiz,
 	NewRecordBiz,
 	NewSliceTypeBiz,
+	NewSearchBiz,
 	NewPromptService,
 )

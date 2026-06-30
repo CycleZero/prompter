@@ -7,6 +7,7 @@ import type {
   PaginatedResponse,
   ComboRegion,
   SliceType,
+  SearchSlicesResponse,
 } from '../types';
 
 // 创建 axios 实例，所有请求以 /api 为前缀（通过 Vite 代理转发到后端 7745 端口）
@@ -67,4 +68,7 @@ export const api = {
   /** 按类型 ID 获取片段列表（便捷方法，等价于 listSlices({ type_id })） */
   listSlicesByType: (typeId: number) =>
     client.get<{ list: Slice[]; total: number }>('/slices', { params: { type_id: typeId } }),
+  /** 搜索提示词块（全文搜索） */
+  searchSlices: (params: { q: string; type_id?: number; page?: number; page_size?: number }) =>
+    client.get<SearchSlicesResponse>('/slices/search', { params }),
 };

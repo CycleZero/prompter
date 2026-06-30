@@ -42,6 +42,7 @@ import type {
   ActivePromptRegion,
   SliceType,
   Slice,
+  SearchSlice,
 } from '../types';
 import { RegionPanel } from '../components/RegionPanel';
 
@@ -56,7 +57,7 @@ export function EditorPage() {
   const [selectRegionOpen, setSelectRegionOpen] = useState(false);
   const [pendingSlice, setPendingSlice] = useState<{
     typeName: string;
-    slice: Slice;
+    slice: Slice | SearchSlice;
   } | null>(null);
   const [newRegionName, setNewRegionName] = useState('');
 
@@ -72,7 +73,7 @@ export function EditorPage() {
   }, [setTitle]);
 
   /** 点击提示词库中的片段 -> 弹出 Region 选择对话框 */
-  const handleSliceClick = (typeName: string, slice: Slice) => {
+  const handleSliceClick = (typeName: string, slice: Slice | SearchSlice) => {
     setPendingSlice({ typeName, slice });
     setNewRegionName(typeName);
     setSelectRegionOpen(true);

@@ -18,6 +18,7 @@ type PromptService struct {
 	draftBiz     *DraftBiz
 	recordBiz    *RecordBiz
 	sliceTypeBiz *SliceTypeBiz
+	searchBiz    *SearchBiz
 }
 
 // NewPromptService 创建 PromptService
@@ -27,6 +28,7 @@ func NewPromptService(
 	draftBiz *DraftBiz,
 	recordBiz *RecordBiz,
 	sliceTypeBiz *SliceTypeBiz,
+	searchBiz *SearchBiz,
 ) *PromptService {
 	return &PromptService{
 		regionBiz:    regionBiz,
@@ -34,6 +36,7 @@ func NewPromptService(
 		draftBiz:     draftBiz,
 		recordBiz:    recordBiz,
 		sliceTypeBiz: sliceTypeBiz,
+		searchBiz:    searchBiz,
 	}
 }
 
@@ -189,6 +192,11 @@ func (s *PromptService) CreateSlice(c *gin.Context) {
 		return
 	}
 
+	// 异步更新搜索索引
+	if s.searchBiz != nil {
+		go s.searchBiz.IndexSlice(slice)
+	}
+
 	c.JSON(http.StatusOK, toSliceResponse(slice))
 }
 
@@ -295,6 +303,11 @@ func (s *PromptService) UpdateSlice(c *gin.Context) {
 		return
 	}
 
+	// 异步更新搜索索引
+	if s.searchBiz != nil {
+		go s.searchBiz.IndexSlice(slice)
+	}
+
 	c.JSON(http.StatusOK, toSliceResponse(slice))
 }
 
@@ -315,6 +328,11 @@ func (s *PromptService) DeleteSlice(c *gin.Context) {
 	if err := s.sliceBiz.Delete(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
 		return
+	}
+
+	// 异步从搜索索引删除
+	if s.searchBiz != nil {
+		go s.searchBiz.DeleteSlice(uint(id))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
@@ -573,6 +591,60 @@ func (s *PromptService) GetSliceTypeTree(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, SliceTypeTreeResponse{Types: types})
+}
+
+// ============================================================
+// 搜索处理器
+// ============================================================
+
+// SearchSlices 搜索提示词块
+// @Summary 搜索提示词块
+// @Tags prompt
+// @Produce json
+// @Param q query string true "搜索关键词"
+// @Param type_id query int false "分类ID"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} SearchSlicesResponse
+// @Router /api/slices/search [get]
+func (s *PromptService) SearchSlices(c *gin.Context) {
+	q := c.Query("q")
+	if q == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少搜索关键词"})
+		return
+	}
+
+	var typeID *uint
+	if tidStr := c.Query("type_id"); tidStr != "" {
+		tid, err := strconv.ParseUint(tidStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "type_id 格式错误"})
+			return
+		}
+		uid := uint(tid)
+		typeID = &uid
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	result, err := s.searchBiz.Search(q, typeID, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "搜索失败"})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// RebuildSearchIndex 全量重建搜索索引（启动时调用）
+func (s *PromptService) RebuildSearchIndex() error {
+	return s.searchBiz.RebuildIndex()
 }
 
 // ============================================================

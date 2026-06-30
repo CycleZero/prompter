@@ -79,7 +79,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, sqlmock.Sqlmock, func()) {
 	recordBiz := NewRecordBiz(recordRepo, sliceRepo, draftRepo)
 	sliceTypeBiz := NewSliceTypeBiz(sliceTypeRepo)
 
-	svc := NewPromptService(regionBiz, sliceBiz, draftBiz, recordBiz, sliceTypeBiz)
+	svc := NewPromptService(regionBiz, sliceBiz, draftBiz, recordBiz, sliceTypeBiz, nil)
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

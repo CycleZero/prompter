@@ -62,6 +62,7 @@ func RegisterPromptRouter(api gin.IRouter, hub *domain.ServiceHub) {
 	{
 		slices.POST("", hub.PromptService.CreateSlice)
 		slices.GET("", hub.PromptService.ListSlices)
+		slices.GET("/search", hub.PromptService.SearchSlices)
 		slices.GET("/:id", hub.PromptService.GetSlice)
 		slices.PUT("/:id", hub.PromptService.UpdateSlice)
 		slices.DELETE("/:id", hub.PromptService.DeleteSlice)

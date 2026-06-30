@@ -193,3 +193,22 @@ type ComboRegionDTO struct {
 type ComboTreeResponse struct {
 	Regions []ComboRegionDTO `json:"regions"`
 }
+
+// ============================================================
+// Search DTOs
+// ============================================================
+
+// SearchSlicesResponse 搜索响应
+type SearchSlicesResponse struct {
+	List  []*SearchSliceResponse `json:"list"`
+	Total int                    `json:"total"`
+	Page  int                    `json:"page"`
+}
+
+// SearchSliceResponse 搜索结果中的单条 Slice
+type SearchSliceResponse struct {
+	ID                uint    `json:"id"`
+	Content           string  `json:"content"`
+	TranslatedContent string  `json:"translated_content"`
+	Score             float64 `json:"score"`
+}

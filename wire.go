@@ -12,10 +12,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-func initApp(vc *viper.Viper, logger *log.Logger) *MainApp {
-	panic(wire.Build(
+func initApp(vc *viper.Viper, logger *log.Logger) (*MainApp, error) {
+	wire.Build(
 		NewMainApp,
 		infra.ProviderSet,
 		internal.ProviderSet,
-	))
+	)
+	return nil, nil
 }

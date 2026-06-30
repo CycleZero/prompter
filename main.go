@@ -22,7 +22,15 @@ func main() {
 	}
 	logger := log.GetLogger()
 
-	app := initApp(vc, logger)
+	app, err := initApp(vc, logger)
+	if err != nil {
+		logger.Fatal("初始化应用失败", zap.Error(err))
+	}
+
+	// 全量重建搜索索引
+	if err := app.ServiceHub.PromptService.RebuildSearchIndex(); err != nil {
+		logger.Error("重建搜索索引失败", zap.Error(err))
+	}
 
 	done := make(chan os.Signal, 1)
 	go func() {

@@ -50,9 +50,10 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
     useSortable({ id: `${regionId}-slice-${slice.slice_id}` });
 
   const style = {
-    transform: transform ? `translate3d(0px, ${transform.y}px, 0)` : undefined,
+    transform: CSS.Transform.toString(transform),
     transition,
     opacity: transform ? 0.3 : 1,
+    zIndex: transform ? 10 : 'auto',
   };
 
   return (
@@ -530,10 +531,16 @@ export function EditorPage() {
               </SortableContext>
               {/* 拖拽浮层：跟随鼠标的拖拽项副本 */}
               <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
-                {activeId && !activeId.startsWith('region-') ? (
-                  <Chip label={activeId.split('-slice-')[1] || activeId} size="medium"
-                    color="primary" variant="filled" sx={{ fontSize: '0.85rem', py: 0.5, boxShadow: 3 }} />
-                ) : null}
+                {activeId && !activeId.startsWith('region-') ? (() => {
+                  const [ridStr, , sidStr] = activeId.split('-');
+                  const rid = parseInt(ridStr);
+                  const r = regions.find(r => r.region_id === rid);
+                  const s = r?.slices.find(s => s.slice_id === parseInt(sidStr));
+                  return (
+                    <Chip label={s?.custom_text ?? s?.content ?? `#${sidStr}`} size="medium"
+                      color="primary" variant="filled" sx={{ fontSize: '0.85rem', py: 0.5, boxShadow: 3 }} />
+                  );
+                })() : null}
               </DragOverlay>
             </DndContext>
           )}

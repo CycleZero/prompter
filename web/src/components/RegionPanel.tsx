@@ -211,7 +211,8 @@ export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
           {filteredSlices.map((s) => (
             <Chip
               key={s.id}
-              label={s.content}
+              label={s.translated_content || s.content}
+              title={s.translated_content ? s.content : undefined}
               size="medium"
               variant="outlined"
               onClick={() =>

@@ -70,6 +70,19 @@ export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
       .finally(() => setLoading(false));
   }, [activeParent]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 用户点击切换二级 Tab 后重新加载标签
+  useEffect(() => {
+    if (activeChild === null) {
+      setSlices([]);
+      return;
+    }
+    setLoading(true);
+    api.listSlicesByType(activeChild)
+      .then((res) => setSlices(res.data.list))
+      .catch(() => setSlices([]))
+      .finally(() => setLoading(false));
+  }, [activeChild]);
+
   // 按搜索关键词过滤标签（匹配 content 与 translated_content）
   const filteredSlices = searchQuery
     ? slices.filter(

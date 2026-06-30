@@ -23,7 +23,6 @@ import {
 import type { DragEndEvent } from '@dnd-kit/core';
 import {
   SortableContext,
-  horizontalListSortingStrategy,
   rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
@@ -515,7 +514,7 @@ export function EditorPage() {
             >
               <SortableContext
                 items={regionIds}
-                strategy={horizontalListSortingStrategy}
+                strategy={rectSortingStrategy}
               >
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                   {regions.map((region) => (

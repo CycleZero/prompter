@@ -582,6 +582,8 @@ func (s *PromptService) GetSliceTypeTree(c *gin.Context) {
 // ============================================================
 
 // GetComboTree 获取类别与提示词块树形结构
+// ListByRegion 现在通过 Record 层级关联查询（prompt_record_regions → prompt_record_region_slices），
+// 返回历史上该 Region 下被使用过的 Slice（去重）
 // @Summary 获取组合树
 // @Tags prompt
 // @Produce json

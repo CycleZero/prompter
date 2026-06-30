@@ -41,7 +41,7 @@ func NewRecordBiz(recordRepo *RecordRepo, sliceRepo *SliceRepo, draftRepo *Draft
 //     c) 构建 AssemblyItem 用于最终 Prompt 拼接
 //     d) 构建 PromptRecordRegionSlice 用于持久化
 //  6. 调用 AssemblePrompt 生成 FullContent
-//  7. 构建 regionPayload 列表（RecordRegion + RecordRegionSlice × N + RegionSlice 回写）
+//  7. 构建 regionPayload 列表（RecordRegion + RecordRegionSlice × N）
 //  8. 事务写入数据库
 //  9. 返回创建的 Record
 func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) {
@@ -116,12 +116,6 @@ func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) 
 				SortOrder:  dto.SortOrder,
 				CustomText: dto.CustomText,
 			})
-			// 回写 Region-Slice 关联，使 combo tree 能反映使用关系
-			payload.RegionSliceEntries = append(payload.RegionSliceEntries, model.PromptRegionSlice{
-				RegionID:  region.RegionID,
-				SliceID:   dto.SliceID,
-				SortOrder: dto.SortOrder,
-			})
 			globalOrder++
 		}
 
@@ -140,16 +134,6 @@ func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) 
 
 	// 步骤 8：事务写入数据库（Record → RecordRegion → RecordRegionSlice 三层结构）
 	if err := b.recordRepo.CreateWithRegions(record, payloads); err != nil {
-		return nil, err
-	}
-
-	// 回写 Region-Slice 关联，使 combo tree 能反映使用关系
-	// 从 payloads 收集所有 RegionSliceEntries
-	regionSliceEntries := make([]model.PromptRegionSlice, 0, globalOrder)
-	for _, p := range payloads {
-		regionSliceEntries = append(regionSliceEntries, p.RegionSliceEntries...)
-	}
-	if err := b.recordRepo.UpsertRegionSlices(regionSliceEntries); err != nil {
 		return nil, err
 	}
 

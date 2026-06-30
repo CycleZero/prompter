@@ -5,7 +5,6 @@ import (
 	"prompter/model"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // RecordRepo 数据访问层 - 封装对 PromptRecord 表的数据库操作
@@ -27,11 +26,9 @@ func NewRecordRepo(data *infra.Data) *RecordRepo {
 
 // regionPayload 持久化时传递的中间结构（不导出，仅供当前包使用）
 // 封装了每个 Region 下需持久化的 RecordRegion、RecordRegionSlice 列表
-// 以及用于后续回写 PromptRegionSlice 关联的条目
 type regionPayload struct {
-	Region             model.PromptRecordRegion
-	Slices             []model.PromptRecordRegionSlice
-	RegionSliceEntries []model.PromptRegionSlice
+	Region model.PromptRecordRegion
+	Slices []model.PromptRecordRegionSlice
 }
 
 // CreateWithRegions 在事务中创建 Record → RecordRegion → RecordRegionSlice 三层结构
@@ -133,11 +130,3 @@ func (r *RecordRepo) Delete(id uint) error {
 	return r.db.Delete(&model.PromptRecord{}, id).Error
 }
 
-// UpsertRegionSlices 批量插入 Region-Slice 关联（已存在则忽略），
-// 在持久化记录时调用，使得 combo tree 能反映实际使用关系
-func (r *RecordRepo) UpsertRegionSlices(entries []model.PromptRegionSlice) error {
-	if len(entries) == 0 {
-		return nil
-	}
-	return r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&entries).Error
-}

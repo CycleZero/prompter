@@ -36,15 +36,6 @@ type SliceType struct {
 	SortOrder int    `gorm:"type:int;default:0;comment:排序" json:"sort_order"`
 }
 
-// PromptRegionSlice 类别与块的关联（控制块在类别内的排序）
-type PromptRegionSlice struct {
-	gorm.Model
-	RegionID  uint `gorm:"index;not null;comment:类别ID" json:"region_id"`
-	SliceID   uint `gorm:"index;not null;comment:块ID" json:"slice_id"`
-	SortOrder int  `gorm:"type:int;default:0;comment:类别内排序" json:"sort_order"`
-}
-
-// PromptRecord 已保存的完整提示词记录
 type PromptRecord struct {
 	gorm.Model
 	ExternalID  string `gorm:"type:varchar(64);uniqueIndex;not null;comment:ComfyUI传入的UUID" json:"external_id"`

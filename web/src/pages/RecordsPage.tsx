@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
+  Box,
   List,
   ListItem,
   ListItemText,
   Typography,
   Paper,
   IconButton,
+  Button,
 } from '@mui/material';
-import { Delete, Refresh } from '@mui/icons-material';
+import { Delete, Refresh, ArrowBack } from '@mui/icons-material';
 import { api } from '../api/client';
 import type { Record } from '../types';
 
@@ -30,33 +32,53 @@ export function RecordsPage() {
   };
 
   return (
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        历史记录
-        <IconButton onClick={fetch} size="small" sx={{ ml: 1 }}>
-          <Refresh />
-        </IconButton>
-      </Typography>
-      <List>
-        {records.map((r) => (
-          <ListItem
-            key={r.id}
-            secondaryAction={
-              <IconButton
-                edge="end"
-                onClick={() => handleDelete(r.id)}
+    <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
+      {/* 返回按钮 */}
+      <Button
+        startIcon={<ArrowBack />}
+        onClick={() => { window.location.hash = ''; }}
+        size="small"
+        sx={{ mb: 1 }}
+      >
+        返回编辑器
+      </Button>
+
+      <Paper sx={{ p: 2 }} variant="outlined">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            历史记录
+          </Typography>
+          <IconButton onClick={fetch} size="small">
+            <Refresh />
+          </IconButton>
+        </Box>
+        {records.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            暂无保存记录
+          </Typography>
+        ) : (
+          <List>
+            {records.map((r) => (
+              <ListItem
+                key={r.id}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    onClick={() => handleDelete(r.id)}
+                  >
+                    <Delete />
+                  </IconButton>
+                }
               >
-                <Delete />
-              </IconButton>
-            }
-          >
-            <ListItemText
-              primary={r.title || '(无标题)'}
-              secondary={r.full_content?.slice(0, 80) + '...'}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </Paper>
+                <ListItemText
+                  primary={r.title || '(无标题)'}
+                  secondary={r.full_content?.slice(0, 80) + '...'}
+                />
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </Paper>
+    </Box>
   );
 }

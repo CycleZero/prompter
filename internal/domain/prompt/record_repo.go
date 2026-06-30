@@ -5,6 +5,7 @@ import (
 	"prompter/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // RecordRepo 数据访问层 - 封装对 PromptRecord 表的数据库操作
@@ -79,4 +80,13 @@ func (r *RecordRepo) List(page, pageSize int) ([]*model.PromptRecord, int64, err
 // Delete 删除记录
 func (r *RecordRepo) Delete(id uint) error {
 	return r.db.Delete(&model.PromptRecord{}, id).Error
+}
+
+// UpsertRegionSlices 批量插入 Region-Slice 关联（已存在则忽略），
+// 在持久化记录时调用，使得 combo tree 能反映实际使用关系
+func (r *RecordRepo) UpsertRegionSlices(entries []model.PromptRegionSlice) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	return r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&entries).Error
 }

@@ -72,6 +72,7 @@ func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) 
 
 	items := make([]AssemblyItem, 0)
 	recordSlices := make([]model.PromptRecordSlice, 0)
+	regionSlices := make([]model.PromptRegionSlice, 0) // 回写 Region-Slice 关联
 	globalOrder := 0
 
 	for _, region := range regions {
@@ -102,6 +103,11 @@ func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) 
 				RegionSortOrder: region.SortOrder,
 				CustomText:      dto.CustomText,
 			})
+			regionSlices = append(regionSlices, model.PromptRegionSlice{
+				RegionID:  region.RegionID,
+				SliceID:   dto.SliceID,
+				SortOrder: dto.SortOrder,
+			})
 			globalOrder++
 		}
 	}
@@ -118,6 +124,10 @@ func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) 
 
 	// 7-8. 持久化记录及切片关联
 	if err := b.recordRepo.CreateWithSlices(record, recordSlices); err != nil {
+		return nil, err
+	}
+	// 回写 Region-Slice 关联，使 combo tree 能反映使用关系
+	if err := b.recordRepo.UpsertRegionSlices(regionSlices); err != nil {
 		return nil, err
 	}
 

@@ -73,7 +73,6 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
 
 interface SortableRegionProps {
   region: { region_id: number; region_name: string; slices: ActiveSlice[] };
-  onSliceDragEnd: (event: DragEndEvent) => void;
   onRemoveRegion: (regionId: number) => void;
   onRemoveSlice: (regionId: number, sliceId: number) => void;
   onRegionNameChange: (regionId: number, name: string) => void;
@@ -82,7 +81,6 @@ interface SortableRegionProps {
 /** 可拖拽的 Region 分组框 — 含拖拽手柄、可编辑标题、内部片段排序 */
 function SortableRegion({
   region,
-  onSliceDragEnd,
   onRemoveRegion,
   onRemoveSlice,
   onRegionNameChange,
@@ -187,37 +185,25 @@ function SortableRegion({
         </IconButton>
       </Box>
 
-      {/* 片段列表：嵌套 DndContext 实现片段拖拽排序 */}
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragEnd={onSliceDragEnd}
-      >
-        <SortableContext
-          items={sliceIds}
-          strategy={rectSortingStrategy}
-        >
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {region.slices.length === 0 ? (
-              <Typography
-                variant="caption"
-                color="text.disabled"
-                sx={{ py: 0.5 }}
-              >
-                暂无标签，从下方提示词库中添加
-              </Typography>
-            ) : (
-              region.slices.map((slice) => (
-                <SortableSlice
-                  key={slice.slice_id}
-                  slice={slice}
-                  regionId={region.region_id}
-                  onRemove={onRemoveSlice}
-                />
-              ))
-            )}
-          </Box>
-        </SortableContext>
-      </DndContext>
+      {/* 片段列表：SortableContext（无嵌套 DndContext，由外层统一管理） */}
+      <SortableContext items={sliceIds} strategy={rectSortingStrategy}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {region.slices.length === 0 ? (
+            <Typography variant="caption" color="text.disabled" sx={{ py: 0.5 }}>
+              暂无标签，从下方提示词库中添加
+            </Typography>
+          ) : (
+            region.slices.map((slice) => (
+              <SortableSlice
+                key={slice.slice_id}
+                slice={slice}
+                regionId={region.region_id}
+                onRemove={onRemoveSlice}
+              />
+            ))
+          )}
+        </Box>
+      </SortableContext>
     </Box>
   );
 }
@@ -338,45 +324,58 @@ export function EditorPage() {
   // 拖拽排序处理
   // ==========================================================
 
-  /** Region 间拖拽排序结束 */
-  const handleRegionDragEnd = (event: DragEndEvent) => {
+  /** 统一的拖拽处理器 — 根据 active.id 前缀分派 Region 或 Slice 操作 */
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
+    const activeId = String(active.id);
     const currentRegions = usePromptStore.getState().regions;
-    const oldIndex = currentRegions.findIndex(
-      (r) => `region-${r.region_id}` === active.id,
-    );
-    const newIndex = currentRegions.findIndex(
-      (r) => `region-${r.region_id}` === over.id,
-    );
 
-    if (oldIndex !== -1 && newIndex !== -1) {
-      usePromptStore.getState().moveRegion(oldIndex, newIndex);
+    // Region 拖拽
+    if (activeId.startsWith('region-')) {
+      const oldIndex = currentRegions.findIndex(r => `region-${r.region_id}` === activeId);
+      const newIndex = currentRegions.findIndex(r => `region-${r.region_id}` === String(over.id));
+      if (oldIndex !== -1 && newIndex !== -1) {
+        usePromptStore.getState().moveRegion(oldIndex, newIndex);
+      }
+      return;
+    }
+
+    // Slice 拖拽（可能跨 Region）
+    const srcRegionId = parseInt(activeId.split('-slice-')[0]);
+    const srcRegion = currentRegions.find(r => r.region_id === srcRegionId);
+    if (!srcRegion) return;
+    const srcIndex = srcRegion.slices.findIndex(s => `${srcRegionId}-slice-${s.slice_id}` === activeId);
+    if (srcIndex === -1) return;
+
+    // 判断目标 Region
+    const overId = String(over.id);
+    const dstRegionId = parseInt(overId.split('-slice-')[0]);
+    const dstRegion = currentRegions.find(r => r.region_id === dstRegionId);
+
+    if (!dstRegion) {
+      // 拖到 Region 上或空区域，不处理（回原位）
+      return;
+    }
+
+    // 判断目标是另一个 Region 的哪个位置
+    const dstIndex = dstRegion.slices.findIndex(s => `${dstRegionId}-slice-${s.slice_id}` === overId);
+
+    if (srcRegionId === dstRegionId) {
+      // 同一 Region 内移动
+      usePromptStore.getState().moveSlice(srcRegionId, srcIndex, dstIndex !== -1 ? dstIndex : srcIndex);
+    } else {
+      // 跨 Region 移动：从源 Region 移除 → 添加到目标 Region
+      const slice = srcRegion.slices[srcIndex];
+      usePromptStore.getState().removeSliceFromRegion(srcRegionId, slice.slice_id);
+      const targetPos = dstIndex !== -1 ? dstIndex : dstRegion.slices.length;
+      usePromptStore.getState().addSliceToRegion(dstRegionId, {
+        ...slice,
+        sort_order: targetPos,
+      });
     }
   };
-
-  /** 片段拖拽排序结束 — 柯里化以携带 regionId */
-  const handleSliceDragEnd =
-    (regionId: number) => (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      const currentRegions = usePromptStore.getState().regions;
-      const region = currentRegions.find((r) => r.region_id === regionId);
-      if (!region) return;
-
-      const oldIndex = region.slices.findIndex(
-        (s) => `${regionId}-slice-${s.slice_id}` === active.id,
-      );
-      const newIndex = region.slices.findIndex(
-        (s) => `${regionId}-slice-${s.slice_id}` === over.id,
-      );
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        usePromptStore.getState().moveSlice(regionId, oldIndex, newIndex);
-      }
-    };
 
   // ==========================================================
   // 保存
@@ -500,7 +499,7 @@ export function EditorPage() {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleRegionDragEnd}
+              onDragEnd={handleDragEnd}
             >
               <SortableContext
                 items={regionIds}
@@ -511,7 +510,6 @@ export function EditorPage() {
                     <SortableRegion
                       key={region.region_id}
                       region={region}
-                      onSliceDragEnd={handleSliceDragEnd(region.region_id)}
                       onRemoveRegion={handleRemoveRegion}
                       onRemoveSlice={handleRemoveSlice}
                       onRegionNameChange={handleRegionNameChange}

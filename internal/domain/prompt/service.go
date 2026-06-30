@@ -3,7 +3,6 @@ package prompt
 import (
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 
 	"prompter/model"
@@ -436,69 +435,56 @@ func (s *PromptService) GetRecord(c *gin.Context) {
 		return
 	}
 
-	recordSlices, err := s.recordBiz.GetSlices(record.ID)
+	// 获取 Record 下的 Region 列表（已按 SortOrder 升序排列）
+	recordRegions, err := s.recordBiz.GetRegionsByRecordID(record.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询切片失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询 Region 失败"})
 		return
 	}
 
-	// 按 RegionID 分组，RegionSortOrder 决定 Region 顺序，SortOrder 决定 Slice 顺序
-	type regionGroup struct {
-		regionSortOrder int
-		regionID        uint
-		regionName      string
-		slices          []RecordSliceResponse
-	}
-	groups := make(map[uint]*regionGroup)
-	var groupOrder []*regionGroup
+	// 逐 Region 重建嵌套响应结构（Region → Slice 树）
+	regions := make([]RecordRegionResponse, 0, len(recordRegions))
+	for _, rr := range recordRegions {
+		// 查询 Region 名称（源表 PromptRegion）
+		regionName := ""
+		if r, err := s.regionBiz.GetByID(rr.RegionID); err == nil {
+			regionName = r.Name
+		}
 
-	for _, rs := range recordSlices {
-		g, ok := groups[rs.RegionID]
-		if !ok {
-			regionName := ""
-			if r, err := s.regionBiz.GetByID(rs.RegionID); err == nil {
-				regionName = r.Name
+		// 查询该 Region 下的所有 Slice（已按 SortOrder 升序排列）
+		regionSliceRefs, err := s.recordBiz.GetRegionSlices(rr.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询切片失败"})
+			return
+		}
+
+		// 构建 Slice 响应列表（解析 Slice 原文，处理自定义文本覆盖）
+		sliceResponses := make([]RecordSliceResponse, 0, len(regionSliceRefs))
+		for _, rs := range regionSliceRefs {
+			// 从源表查询 Slice 原文
+			content := ""
+			customText := rs.CustomText
+			if sl, err := s.sliceBiz.GetByID(rs.SliceID); err == nil {
+				content = sl.Content
 			}
-			g = &regionGroup{
-				regionSortOrder: rs.RegionSortOrder,
-				regionID:        rs.RegionID,
-				regionName:      regionName,
+			// 若有自定义文本覆盖，使用自定义文本
+			if customText != nil {
+				content = *customText
 			}
-			groups[rs.RegionID] = g
-			groupOrder = append(groupOrder, g)
+
+			sliceResponses = append(sliceResponses, RecordSliceResponse{
+				SliceID:    rs.SliceID,
+				Content:    content,
+				CustomText: customText,
+				SortOrder:  rs.SortOrder,
+			})
 		}
 
-		var content string
-		var customText *string
-		sl, err := s.sliceBiz.GetByID(rs.SliceID)
-		if err == nil {
-			content = sl.Content
-		}
-		if rs.CustomText != nil {
-			content = *rs.CustomText
-			customText = rs.CustomText
-		}
-
-		g.slices = append(g.slices, RecordSliceResponse{
-			SliceID:    rs.SliceID,
-			Content:    content,
-			CustomText: customText,
-			SortOrder:  rs.SortOrder,
-		})
-	}
-
-	// 按 RegionSortOrder 排序 Region 分组
-	sort.SliceStable(groupOrder, func(i, j int) bool {
-		return groupOrder[i].regionSortOrder < groupOrder[j].regionSortOrder
-	})
-
-	regions := make([]RecordRegionResponse, 0, len(groupOrder))
-	for _, g := range groupOrder {
 		regions = append(regions, RecordRegionResponse{
-			RegionID:   g.regionID,
-			RegionName: g.regionName,
-			SortOrder:  g.regionSortOrder,
-			Slices:     g.slices,
+			RegionID:   rr.RegionID,
+			RegionName: regionName,
+			SortOrder:  rr.SortOrder,
+			Slices:     sliceResponses,
 		})
 	}
 

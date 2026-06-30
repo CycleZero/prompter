@@ -58,13 +58,21 @@ type ActivePrompt struct {
 	Data string `gorm:"type:longtext;comment:ActivePromptData的JSON序列化" json:"data"`
 }
 
-// PromptRecordSlice 记录与块的关联（含全局排序和可选的覆盖文本）
-type PromptRecordSlice struct {
+// PromptRecordRegion 记录中的 Region 分组（Record 下的一级实体）
+// 每个 Region 代表用户在界面上看到的一个可拖拽分块
+type PromptRecordRegion struct {
 	gorm.Model
-	RecordID        uint    `gorm:"index;not null;comment:记录ID" json:"record_id"`
-	SliceID         uint    `gorm:"not null;comment:块ID" json:"slice_id"`
-	RegionID        uint    `gorm:"not null;comment:类别ID" json:"region_id"`
-	SortOrder       int     `gorm:"type:int;default:0;comment:全局组装顺序" json:"sort_order"`
-	RegionSortOrder int     `gorm:"type:int;default:0;comment:Region展示顺序" json:"region_sort_order"`
-	CustomText      *string `gorm:"type:text;comment:覆盖文本(NULL=使用块原文)" json:"custom_text"`
+	RecordID  uint `gorm:"index;not null;comment:所属记录ID" json:"record_id"`
+	RegionID  uint `gorm:"not null;comment:用户分组的Region标识" json:"region_id"`
+	SortOrder int  `gorm:"type:int;default:0;comment:Region在Record中的显示顺序" json:"sort_order"`
+}
+
+// PromptRecordRegionSlice 记录中某个 Region 下的 Slice 引用
+// 一个 Slice 可被多个 Record 或同一 Record 的多个 Region 引用
+type PromptRecordRegionSlice struct {
+	gorm.Model
+	RecordRegionID uint    `gorm:"index;not null;comment:所属RecordRegion的ID" json:"record_region_id"`
+	SliceID        uint    `gorm:"not null;comment:引用的Slice ID" json:"slice_id"`
+	SortOrder      int     `gorm:"type:int;default:0;comment:Slice在Region内的顺序" json:"sort_order"`
+	CustomText     *string `gorm:"type:text;comment:用户覆盖的文本(NULL=使用原文)" json:"custom_text"`
 }

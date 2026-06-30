@@ -15,23 +15,55 @@ type RecordRepo struct {
 }
 
 func NewRecordRepo(data *infra.Data) *RecordRepo {
-	if err := data.DB.AutoMigrate(&model.PromptRecord{}, &model.PromptRecordSlice{}); err != nil {
+	if err := data.DB.AutoMigrate(
+		&model.PromptRecord{},
+		&model.PromptRecordRegion{},
+		&model.PromptRecordRegionSlice{},
+	); err != nil {
 		panic(err)
 	}
 	return &RecordRepo{db: data.DB, data: data}
 }
 
-// CreateWithSlices 创建记录并批量插入关联切片
-func (r *RecordRepo) CreateWithSlices(record *model.PromptRecord, slices []model.PromptRecordSlice) error {
+// regionPayload 持久化时传递的中间结构（不导出，仅供当前包使用）
+// 封装了每个 Region 下需持久化的 RecordRegion、RecordRegionSlice 列表
+// 以及用于后续回写 PromptRegionSlice 关联的条目
+type regionPayload struct {
+	Region             model.PromptRecordRegion
+	Slices             []model.PromptRecordRegionSlice
+	RegionSliceEntries []model.PromptRegionSlice
+}
+
+// CreateWithRegions 在事务中创建 Record → RecordRegion → RecordRegionSlice 三层结构
+//  1. 创建 PromptRecord 主记录
+//  2. 遍历每个载荷：创建 PromptRecordRegion（回填 RecordID）
+//  3. 对每个 Region 下的 Slice 列表：创建 PromptRecordRegionSlice（回填 RecordRegionID）
+//
+// 返回 error 表示整个事务失败并回滚
+func (r *RecordRepo) CreateWithRegions(record *model.PromptRecord, payloads []*regionPayload) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 步骤 1：创建 Record
 		if err := tx.Create(record).Error; err != nil {
 			return err
 		}
-		for i := range slices {
-			slices[i].RecordID = record.ID
-		}
-		if len(slices) > 0 {
-			return tx.Create(&slices).Error
+
+		// 步骤 2-3：遍历每个 Region 载荷，逐层创建子实体
+		for _, p := range payloads {
+			// 绑定 Record 关联并创建 RecordRegion
+			p.Region.RecordID = record.ID
+			if err := tx.Create(&p.Region).Error; err != nil {
+				return err
+			}
+
+			// 绑定 RecordRegion 关联并批量创建 RecordRegionSlice
+			for i := range p.Slices {
+				p.Slices[i].RecordRegionID = p.Region.ID
+			}
+			if len(p.Slices) > 0 {
+				if err := tx.Create(&p.Slices).Error; err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -57,10 +89,29 @@ func (r *RecordRepo) GetByID(id uint) (*model.PromptRecord, error) {
 	return &record, nil
 }
 
-// GetSlicesByRecordID 获取记录的所有关联切片，按排序升序
-func (r *RecordRepo) GetSlicesByRecordID(recordID uint) ([]model.PromptRecordSlice, error) {
-	var slices []model.PromptRecordSlice
-	err := r.db.Where("record_id = ?", recordID).Order("sort_order ASC").Find(&slices).Error
+// GetRegionsByRecordID 获取某条 Record 的所有 Region（按 SortOrder 排序）
+func (r *RecordRepo) GetRegionsByRecordID(recordID uint) ([]*model.PromptRecordRegion, error) {
+	var regions []*model.PromptRecordRegion
+	err := r.db.Where("record_id = ?", recordID).Order("sort_order ASC").Find(&regions).Error
+	return regions, err
+}
+
+// GetRegionSlices 获取某个 RecordRegion 下的所有 Slice（按 SortOrder 排序）
+func (r *RecordRepo) GetRegionSlices(recordRegionID uint) ([]*model.PromptRecordRegionSlice, error) {
+	var slices []*model.PromptRecordRegionSlice
+	err := r.db.Where("record_region_id = ?", recordRegionID).Order("sort_order ASC").Find(&slices).Error
+	return slices, err
+}
+
+// GetAllRegionSlices 获取某条 Record 的所有 RecordRegionSlice（扁平列表，按 SortOrder 排序）
+// 用于需要遍历所有 Slice 但不关心 Region 分组的场景
+func (r *RecordRepo) GetAllRegionSlices(recordID uint) ([]*model.PromptRecordRegionSlice, error) {
+	var slices []*model.PromptRecordRegionSlice
+	err := r.db.
+		Joins("JOIN prompt_record_regions ON prompt_record_regions.id = prompt_record_region_slices.record_region_id").
+		Where("prompt_record_regions.record_id = ?", recordID).
+		Order("prompt_record_region_slices.sort_order ASC").
+		Find(&slices).Error
 	return slices, err
 }
 

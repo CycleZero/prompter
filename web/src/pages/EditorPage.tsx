@@ -235,14 +235,16 @@ export function EditorPage() {
 
   // 初始化：加载片段类型树和活动 Prompt 数据
   useEffect(() => {
-    api.getSliceTypes().then((res) => setSliceTypes(res.data.types));
+    api.getSliceTypes()
+      .then((res) => setSliceTypes(res.data.types))
+      .catch(() => console.error('加载类型树失败'));
     api.getActivePrompt().then((res) => {
       if (res.data.regions?.length) {
         setTitle(res.data.title || '');
         usePromptStore.getState().setRegions(res.data.regions);
       }
-    });
-  }, [setTitle]);
+    }).catch(() => {});
+  }, []);
 
   // ==========================================================
   // 提示词库标签点击处理

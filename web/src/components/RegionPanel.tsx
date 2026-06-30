@@ -45,37 +45,31 @@ export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
         .sort((a, b) => a.sort_order - b.sort_order)
     : [];
 
-  // 挂载或 types 变更时自动选中第一个主分类
+  // 一级 Tab 自动选中第一个主分类（仅在 types 变化且尚未选中时触发）
   useEffect(() => {
     if (rootTypes.length > 0 && activeParent === null) {
       setActiveParent(rootTypes[0].id);
     }
   }, [rootTypes, activeParent]);
 
-  // 主分类切换后自动选中第一个子分类
+  // 主分类切换后：自动选中第一个子分类，并加载其标签列表
   useEffect(() => {
-    if (childTypes.length > 0) {
-      setActiveChild(childTypes[0].id);
-    } else {
+    if (activeParent === null) return;
+    if (childTypes.length === 0) {
       setActiveChild(null);
-      setSlices([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeParent]);
-
-  // 子分类切换后懒加载对应标签列表
-  useEffect(() => {
-    if (activeChild === null) {
       setSlices([]);
       return;
     }
+    // 选中第一个子分类
+    const firstChildId = childTypes[0].id;
+    setActiveChild(firstChildId);
+    // 加载该子分类下的标签
     setLoading(true);
-    api
-      .listSlicesByType(activeChild)
+    api.listSlicesByType(firstChildId)
       .then((res) => setSlices(res.data.list))
       .catch(() => setSlices([]))
       .finally(() => setLoading(false));
-  }, [activeChild]);
+  }, [activeParent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 按搜索关键词过滤标签（匹配 content 与 translated_content）
   const filteredSlices = searchQuery

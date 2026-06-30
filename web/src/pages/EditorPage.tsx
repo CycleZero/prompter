@@ -50,7 +50,7 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transform ? transition : undefined,
     opacity: transform ? 0.3 : 1,
     zIndex: transform ? 10 : 'auto',
   };
@@ -101,7 +101,7 @@ function SortableRegion({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transform ? transition : undefined,
     zIndex: transform ? 1 : undefined,
   };
 

@@ -59,7 +59,7 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
   return (
     <Box ref={setNodeRef} style={style} {...listeners} {...attributes}>
       <Chip
-        label={slice.custom_text ?? slice.translated_content || slice.content || `#${slice.slice_id}`}
+        label={slice.custom_text ?? (slice.translated_content || slice.content || `#${slice.slice_id}`)}
         title={slice.translated_content ? slice.content : undefined}
         size="medium"
         color="primary"
@@ -540,7 +540,7 @@ export function EditorPage() {
                   const r = regions.find(r => r.region_id === rid);
                   const s = r?.slices.find(s => s.slice_id === parseInt(sidStr));
                   return (
-                    <Chip label={s?.custom_text ?? s?.translated_content || s?.content || `#${sidStr}`} size="medium"
+                    <Chip label={s?.custom_text ?? (s?.translated_content || s?.content || `#${sidStr}`)} size="medium"
                       color="primary" variant="filled" sx={{ fontSize: '0.85rem', py: 0.5, boxShadow: 3 }}
                       title={s?.translated_content ? s.content : undefined} />
                   );

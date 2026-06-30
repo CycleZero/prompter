@@ -7,6 +7,10 @@ import {
   Typography,
   IconButton,
   Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { Save, Close, Add, DragIndicator } from '@mui/icons-material';
 import {
@@ -42,7 +46,7 @@ interface SortableSliceProps {
 /** 可拖拽排序的片段 Chip 组件 */
 function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
   const { setNodeRef, transform, transition, listeners, attributes } =
-    useSortable({ id: `slice-${slice.slice_id}` });
+    useSortable({ id: `${regionId}-slice-${slice.slice_id}` });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -95,7 +99,7 @@ function SortableRegion({
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(region.region_name);
 
-  const sliceIds = region.slices.map((s) => `slice-${s.slice_id}`);
+  const sliceIds = region.slices.map((s, i) => `${region.region_id}-slice-${s.slice_id}-${i}`);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -228,6 +232,8 @@ export function EditorPage() {
   const [sliceTypes, setSliceTypes] = useState<SliceType[]>([]);
   // 保存状态提示
   const [status, setStatus] = useState('');
+  // 当前添加标签的目标 Region ID（0 = 自动选择第一个或创建）
+  const [targetRegionId, setTargetRegionId] = useState(0);
   // Zustand 全局状态
   const { title, setTitle, regions, getPromptPreview } = usePromptStore();
 
@@ -252,35 +258,41 @@ export function EditorPage() {
   // ==========================================================
 
   /** 
-   * 点击提示词库中的标签 → 添加到默认「活跃」Region
-   * typeName 参数来自 SliceType 分类名，仅用于浏览，不再作为 Region 名
+   * 点击提示词库中的标签 → 添加到当前选中的目标 Region
+   * 防止同一 Region 内重复添加相同 slice_id
    */
   const handleSliceClick = (_typeName: string, slice: Slice | SearchSlice) => {
     const currentRegions = usePromptStore.getState().regions;
-    const fullSlice = slice as Slice;
-
-    const activeSlice: ActiveSlice = {
-      slice_id: slice.id,
-      content: slice.content,
-      translated_content: fullSlice.translated_content ?? '',
-      sort_order: 0,
-      custom_text: null,
-    };
-
-    if (currentRegions.length > 0) {
-      // 添加到第一个 Region
-      const region = currentRegions[0];
-      activeSlice.sort_order = region.slices.length;
-      usePromptStore.getState().addSliceToRegion(region.region_id, activeSlice);
-    } else {
-      // 创建默认「活跃」Region
-      usePromptStore.getState().addRegion({
-        region_id: Date.now(),
-        region_name: '活跃',
-        sort_order: 0,
-        slices: [activeSlice],
-      });
+    // 确定目标 Region ID
+    let targetId = targetRegionId;
+    if (targetId === 0 && currentRegions.length > 0) {
+      targetId = currentRegions[0].region_id;
     }
+    // 如果没有目标 Region，创建默认「活跃」
+    if (targetId === 0 || !currentRegions.find(r => r.region_id === targetId)) {
+      targetId = Date.now();
+      usePromptStore.getState().addRegion({
+        region_id: targetId, region_name: '活跃', sort_order: currentRegions.length,
+        slices: [{
+          slice_id: slice.id, content: slice.content,
+          translated_content: (slice as Slice).translated_content ?? '',
+          sort_order: 0, custom_text: null,
+        }],
+      });
+      setTargetRegionId(targetId);
+      return;
+    }
+    // 检查重复：同一 Region 内不允许相同 slice_id
+    const targetRegion = currentRegions.find(r => r.region_id === targetId)!;
+    if (targetRegion.slices.some(s => s.slice_id === slice.id)) {
+      return; // 已存在，忽略
+    }
+    usePromptStore.getState().addSliceToRegion(targetId, {
+      slice_id: slice.id, content: slice.content,
+      translated_content: (slice as Slice).translated_content ?? '',
+      sort_order: targetRegion.slices.length, custom_text: null,
+    });
+    setTargetRegionId(targetId);
   };
 
   // ==========================================================
@@ -462,6 +474,22 @@ export function EditorPage() {
             >
               新建分组
             </Button>
+            {regions.length > 0 && (
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>添加到</InputLabel>
+                <Select
+                  value={targetRegionId || regions[0]?.region_id || ''}
+                  label="添加到"
+                  onChange={e => setTargetRegionId(Number(e.target.value))}
+                >
+                  {regions.map(r => (
+                    <MenuItem key={r.region_id} value={r.region_id}>
+                      {r.region_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Box>
 
           {regions.length === 0 ? (

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   Tabs,
   Tab,
-  Chip,
   Typography,
   Box,
   TextField,
@@ -13,6 +12,7 @@ import {
 import { Search, Clear } from '@mui/icons-material';
 import type { SliceType, Slice, SearchSlice } from '../types';
 import { api } from '../api/client';
+import { TagChip } from './TagChip';
 
 // 提示词库面板属性 — onSliceClick 接受普通 Slice 和搜索结果 SearchSlice
 interface RegionPanelProps {
@@ -209,12 +209,10 @@ export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
       ) : (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
           {filteredSlices.map((s) => (
-            <Chip
+            <TagChip
               key={s.id}
-              label={s.translated_content || s.content}
-              title={s.translated_content ? s.content : undefined}
-              size="medium"
-              variant="outlined"
+              primary={s.translated_content || s.content}
+              secondary={s.translated_content ? s.content : undefined}
               onClick={() =>
                 onSliceClick(
                   childTypes.find((c) => c.id === activeChild)?.name ?? '',

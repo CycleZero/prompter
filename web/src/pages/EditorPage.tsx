@@ -6,7 +6,6 @@ import {
   Paper,
   Typography,
   IconButton,
-  Chip,
   Select,
   MenuItem,
   FormControl,
@@ -33,6 +32,7 @@ import { api } from '../api/client';
 import { usePromptStore } from '../store';
 import type { ActiveSlice, SliceType, Slice, SearchSlice } from '../types';
 import { RegionPanel } from '../components/RegionPanel';
+import { TagChip } from '../components/TagChip';
 
 // ============================================================
 // SortableSlice — 可拖拽排序的片段标签
@@ -58,14 +58,11 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
 
   return (
     <Box ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <Chip
-        label={slice.custom_text ?? (slice.translated_content || slice.content || `#${slice.slice_id}`)}
-        title={slice.translated_content ? slice.content : undefined}
-        size="medium"
-        color="primary"
-        variant="filled"
+      <TagChip
+        primary={slice.custom_text ?? (slice.translated_content || slice.content || `#${slice.slice_id}`)}
+        secondary={slice.translated_content ? slice.content : undefined}
+        selected
         onDelete={() => onRemove(regionId, slice.slice_id)}
-        sx={{ fontSize: '0.85rem', cursor: 'grab', py: 0.5 }}
       />
     </Box>
   );
@@ -540,9 +537,11 @@ export function EditorPage() {
                   const r = regions.find(r => r.region_id === rid);
                   const s = r?.slices.find(s => s.slice_id === parseInt(sidStr));
                   return (
-                    <Chip label={s?.custom_text ?? (s?.translated_content || s?.content || `#${sidStr}`)} size="medium"
-                      color="primary" variant="filled" sx={{ fontSize: '0.85rem', py: 0.5, boxShadow: 3 }}
-                      title={s?.translated_content ? s.content : undefined} />
+                    <TagChip
+                      primary={s?.custom_text ?? (s?.translated_content || s?.content || `#${sidStr}`)}
+                      secondary={s?.translated_content ? s?.content : undefined}
+                      selected
+                    />
                   );
                 })() : null}
               </DragOverlay>

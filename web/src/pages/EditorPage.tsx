@@ -8,11 +8,219 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
-import { Save, Close } from '@mui/icons-material';
+import { Save, Close, Add, DragIndicator } from '@mui/icons-material';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { api } from '../api/client';
 import { usePromptStore } from '../store';
 import type { ActiveSlice, SliceType, Slice, SearchSlice } from '../types';
 import { RegionPanel } from '../components/RegionPanel';
+
+// ============================================================
+// SortableSlice — 可拖拽排序的片段标签
+// ============================================================
+
+interface SortableSliceProps {
+  slice: ActiveSlice;
+  regionId: number;
+  onRemove: (regionId: number, sliceId: number) => void;
+}
+
+/** 可拖拽排序的片段 Chip 组件 */
+function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
+  const { setNodeRef, transform, transition, listeners, attributes } =
+    useSortable({ id: `slice-${slice.slice_id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Box ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <Chip
+        label={slice.custom_text ?? slice.content ?? `#${slice.slice_id}`}
+        size="medium"
+        color="primary"
+        variant="filled"
+        onDelete={() => onRemove(regionId, slice.slice_id)}
+        sx={{ fontSize: '0.85rem', cursor: 'grab', py: 0.5 }}
+      />
+    </Box>
+  );
+}
+
+// ============================================================
+// SortableRegion — 可拖拽排序的区域分组框
+// ============================================================
+
+interface SortableRegionProps {
+  region: { region_id: number; region_name: string; slices: ActiveSlice[] };
+  onSliceDragEnd: (event: DragEndEvent) => void;
+  onRemoveRegion: (regionId: number) => void;
+  onRemoveSlice: (regionId: number, sliceId: number) => void;
+  onRegionNameChange: (regionId: number, name: string) => void;
+}
+
+/** 可拖拽的 Region 分组框 — 含拖拽手柄、可编辑标题、内部片段排序 */
+function SortableRegion({
+  region,
+  onSliceDragEnd,
+  onRemoveRegion,
+  onRemoveSlice,
+  onRegionNameChange,
+}: SortableRegionProps) {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    listeners,
+    attributes,
+  } = useSortable({ id: `region-${region.region_id}` });
+
+  // 区域名称内联编辑状态
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(region.region_name);
+
+  const sliceIds = region.slices.map((s) => `slice-${s.slice_id}`);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: transform ? 1 : undefined,
+  };
+
+  /** 提交区域名称修改 */
+  const commitName = () => {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== region.region_name) {
+      onRegionNameChange(region.region_id, trimmed);
+    } else {
+      setNameValue(region.region_name);
+    }
+    setEditingName(false);
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        p: 2,
+        minWidth: 220,
+        bgcolor: 'white',
+        boxShadow: transform ? 4 : 0,
+      }}
+    >
+      {/* 标题行：拖拽手柄 + 可编辑标题 + 删除按钮 */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+        <Box
+          {...listeners}
+          {...attributes}
+          sx={{ display: 'flex', alignItems: 'center', cursor: 'grab', mr: 0.5 }}
+        >
+          <DragIndicator fontSize="small" sx={{ color: 'text.secondary' }} />
+        </Box>
+        {editingName ? (
+          <TextField
+            size="small"
+            variant="standard"
+            value={nameValue}
+            onChange={(e) => setNameValue(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitName();
+              if (e.key === 'Escape') {
+                setNameValue(region.region_name);
+                setEditingName(false);
+              }
+            }}
+            autoFocus
+            sx={{ flexGrow: 1, mr: 0.5 }}
+            slotProps={{
+              input: { sx: { fontWeight: 600, fontSize: '0.875rem' } },
+            }}
+          />
+        ) : (
+          <Typography
+            variant="subtitle2"
+            sx={{
+              fontWeight: 600,
+              flexGrow: 1,
+              cursor: 'pointer',
+              '&:hover': { color: 'primary.main' },
+            }}
+            onClick={() => {
+              setNameValue(region.region_name);
+              setEditingName(true);
+            }}
+          >
+            {region.region_name}
+          </Typography>
+        )}
+        <IconButton
+          size="small"
+          onClick={() => onRemoveRegion(region.region_id)}
+          sx={{ flexShrink: 0 }}
+        >
+          <Close fontSize="inherit" />
+        </IconButton>
+      </Box>
+
+      {/* 片段列表：嵌套 DndContext 实现片段拖拽排序 */}
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragEnd={onSliceDragEnd}
+      >
+        <SortableContext
+          items={sliceIds}
+          strategy={verticalListSortingStrategy}
+        >
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {region.slices.length === 0 ? (
+              <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ py: 0.5 }}
+              >
+                暂无标签，从下方提示词库中添加
+              </Typography>
+            ) : (
+              region.slices.map((slice) => (
+                <SortableSlice
+                  key={slice.slice_id}
+                  slice={slice}
+                  regionId={region.region_id}
+                  onRemove={onRemoveSlice}
+                />
+              ))
+            )}
+          </Box>
+        </SortableContext>
+      </DndContext>
+    </Box>
+  );
+}
+
+// ============================================================
+// EditorPage — 编辑器主页面
+// ============================================================
 
 /** 编辑器页面 — 单页布局：当前 Prompt 区域 + 提示词库 + 底部预览栏 */
 export function EditorPage() {
@@ -22,6 +230,11 @@ export function EditorPage() {
   const [status, setStatus] = useState('');
   // Zustand 全局状态
   const { title, setTitle, regions, getPromptPreview } = usePromptStore();
+
+  // 拖拽传感器配置：5px 移动阈值防止误触
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
 
   // 初始化：加载片段类型树和活动 Prompt 数据
   useEffect(() => {
@@ -34,50 +247,139 @@ export function EditorPage() {
     });
   }, [setTitle]);
 
-  /** 点击提示词库中的标签 → 自动创建或添加到对应区域 */
-  const handleSliceClick = (typeName: string, slice: Slice | SearchSlice) => {
+  // ==========================================================
+  // 提示词库标签点击处理
+  // ==========================================================
+
+  /** 
+   * 点击提示词库中的标签 → 添加到默认「活跃」Region
+   * typeName 参数来自 SliceType 分类名，仅用于浏览，不再作为 Region 名
+   */
+  const handleSliceClick = (_typeName: string, slice: Slice | SearchSlice) => {
     const currentRegions = usePromptStore.getState().regions;
-    // SearchSlice 与 Slice 均有 translated_content，但为安全起见使用类型断言
-    const fullSlice = slice as { translated_content?: string };
-    const existing = currentRegions.find((r) => r.region_name === typeName);
+    const fullSlice = slice as Slice;
 
     const activeSlice: ActiveSlice = {
       slice_id: slice.id,
       content: slice.content,
       translated_content: fullSlice.translated_content ?? '',
-      sort_order: existing ? existing.slices.length : 0,
+      sort_order: 0,
       custom_text: null,
     };
 
-    if (existing) {
-      usePromptStore.getState().addSliceToRegion(existing.region_id, activeSlice);
+    if (currentRegions.length > 0) {
+      // 添加到第一个 Region
+      const region = currentRegions[0];
+      activeSlice.sort_order = region.slices.length;
+      usePromptStore.getState().addSliceToRegion(region.region_id, activeSlice);
     } else {
-      // 自动创建新 Region
+      // 创建默认「活跃」Region
       usePromptStore.getState().addRegion({
         region_id: Date.now(),
-        region_name: typeName,
-        sort_order: currentRegions.length,
+        region_name: '活跃',
+        sort_order: 0,
         slices: [activeSlice],
       });
     }
   };
 
-  /** 从区域中移除指定片段 */
+  // ==========================================================
+  // Region 操作
+  // ==========================================================
+
+  /** 添加新空白 Region */
+  const handleAddRegion = () => {
+    const currentRegions = usePromptStore.getState().regions;
+    usePromptStore.getState().addRegion({
+      region_id: Date.now(),
+      region_name: '新分组',
+      sort_order: currentRegions.length,
+      slices: [],
+    });
+  };
+
+  /** 删除整个 Region */
+  const handleRemoveRegion = (regionId: number) => {
+    usePromptStore.getState().removeRegion(regionId);
+  };
+
+  /** 更新 Region 名称 */
+  const handleRegionNameChange = (regionId: number, name: string) => {
+    const currentRegions = usePromptStore.getState().regions;
+    usePromptStore.getState().setRegions(
+      currentRegions.map((r) =>
+        r.region_id === regionId ? { ...r, region_name: name } : r,
+      ),
+    );
+  };
+
+  // ==========================================================
+  // 片段操作
+  // ==========================================================
+
+  /** 从 Region 中移除指定片段 */
   const handleRemoveSlice = (regionId: number, sliceId: number) => {
     usePromptStore.getState().removeSliceFromRegion(regionId, sliceId);
   };
 
-  /** 删除整个区域 */
-  const handleRemoveRegion = (regionId: number) => {
-    usePromptStore.getState().removeRegion(regionId);
+  // ==========================================================
+  // 拖拽排序处理
+  // ==========================================================
+
+  /** Region 间拖拽排序结束 */
+  const handleRegionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentRegions = usePromptStore.getState().regions;
+    const oldIndex = currentRegions.findIndex(
+      (r) => `region-${r.region_id}` === active.id,
+    );
+    const newIndex = currentRegions.findIndex(
+      (r) => `region-${r.region_id}` === over.id,
+    );
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      usePromptStore.getState().moveRegion(oldIndex, newIndex);
+    }
   };
+
+  /** 片段拖拽排序结束 — 柯里化以携带 regionId */
+  const handleSliceDragEnd =
+    (regionId: number) => (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const currentRegions = usePromptStore.getState().regions;
+      const region = currentRegions.find((r) => r.region_id === regionId);
+      if (!region) return;
+
+      const oldIndex = region.slices.findIndex(
+        (s) => `slice-${s.slice_id}` === active.id,
+      );
+      const newIndex = region.slices.findIndex(
+        (s) => `slice-${s.slice_id}` === over.id,
+      );
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        usePromptStore.getState().moveSlice(regionId, oldIndex, newIndex);
+      }
+    };
+
+  // ==========================================================
+  // 保存
+  // ==========================================================
 
   /** 保存当前 Prompt 到后端 */
   const handleSave = async () => {
     try {
       const currentRegions = usePromptStore.getState().regions;
       const currentTitle = usePromptStore.getState().title;
-      await api.updateActivePrompt({ title: currentTitle, regions: currentRegions, updated_at: '' });
+      await api.updateActivePrompt({
+        title: currentTitle,
+        regions: currentRegions,
+        updated_at: '',
+      });
       setStatus('已保存');
       setTimeout(() => setStatus(''), 2000);
     } catch {
@@ -85,12 +387,29 @@ export function EditorPage() {
     }
   };
 
+  // ==========================================================
+  // 计算属性
+  // ==========================================================
+
   const preview = getPromptPreview();
+  const regionIds = regions.map((r) => `region-${r.region_id}`);
+
+  // ==========================================================
+  // 渲染
+  // ==========================================================
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 }}>
       {/* 标题栏：Prompt 标题 + 保存按钮 + 状态提示 */}
-      <Box sx={{ p: 2, display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          gap: 1,
+          alignItems: 'center',
+          flexShrink: 0,
+        }}
+      >
         <TextField
           size="small"
           label="Prompt 标题"
@@ -122,62 +441,57 @@ export function EditorPage() {
 
       {/* 主内容区域：当前 Prompt + 提示词库（双区域，可滚动） */}
       <Box sx={{ flexGrow: 1, overflow: 'auto', px: 2, pb: 1 }}>
-        {/* 区域 1：当前 Prompt — 已选片段按 Region 分组展示 */}
+        {/* 区域 1：当前 Prompt — 已选片段按 Region 分组展示，支持拖拽排序 */}
         <Paper sx={{ p: 2, mb: 2, bgcolor: '#fafbfc' }} variant="outlined">
-          <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600 }}>
-            当前 Prompt
-          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              mb: 1.5,
+              gap: 1,
+            }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, flexGrow: 1 }}>
+              当前 Prompt
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Add />}
+              onClick={handleAddRegion}
+            >
+              新建分组
+            </Button>
+          </Box>
+
           {regions.length === 0 ? (
             <Typography color="text.secondary" variant="body2">
               点击下方标签库中的标签开始构建 Prompt
             </Typography>
           ) : (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              {regions.map((region) => (
-                <Box
-                  key={region.region_id}
-                  sx={{
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: 1,
-                    p: 1.5,
-                    minWidth: 200,
-                    bgcolor: 'white',
-                  }}
-                >
-                  {/* Region 标题行 */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 600, color: 'text.secondary', flexGrow: 1 }}
-                    >
-                      {region.region_name}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleRemoveRegion(region.region_id)}
-                      sx={{ p: 0, ml: 0.5 }}
-                    >
-                      <Close fontSize="inherit" />
-                    </IconButton>
-                  </Box>
-                  {/* Region 内的标签列表 */}
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {region.slices.map((slice) => (
-                      <Chip
-                        key={slice.slice_id}
-                        label={slice.custom_text ?? slice.content ?? `#${slice.slice_id}`}
-                        size="small"
-                        color="primary"
-                        variant="filled"
-                        onDelete={() => handleRemoveSlice(region.region_id, slice.slice_id)}
-                        sx={{ fontSize: '0.75rem' }}
-                      />
-                    ))}
-                  </Box>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleRegionDragEnd}
+            >
+              <SortableContext
+                items={regionIds}
+                strategy={horizontalListSortingStrategy}
+              >
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  {regions.map((region) => (
+                    <SortableRegion
+                      key={region.region_id}
+                      region={region}
+                      onSliceDragEnd={handleSliceDragEnd(region.region_id)}
+                      onRemoveRegion={handleRemoveRegion}
+                      onRemoveSlice={handleRemoveSlice}
+                      onRegionNameChange={handleRegionNameChange}
+                    />
+                  ))}
                 </Box>
-              ))}
-            </Box>
+              </SortableContext>
+            </DndContext>
           )}
         </Paper>
 

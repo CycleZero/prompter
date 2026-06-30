@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Box,
+  Tabs,
+  Tab,
   Chip,
   Typography,
-  CircularProgress,
+  Box,
   TextField,
   InputAdornment,
+  CircularProgress,
   IconButton,
-  Collapse,
 } from '@mui/material';
-import { Search, Clear, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { Search, Clear } from '@mui/icons-material';
 import type { SliceType, Slice, SearchSlice } from '../types';
 import { api } from '../api/client';
 
@@ -19,256 +20,205 @@ interface RegionPanelProps {
   onSliceClick: (typeName: string, slice: Slice | SearchSlice) => void;
 }
 
-/** 片段类型树节点 — 顶层分类可展开/收起，子分类作为区块展示标签 */
-function TypeNode({
-  type,
-  onSliceClick,
-}: {
-  type: SliceType;
-  onSliceClick: (typeName: string, slice: Slice) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  // 按子类型 ID 缓存已加载的片段列表
-  const [childSlices, setChildSlices] = useState<Record<number, Slice[]>>({});
+/** 提示词库面板 — 二级 Tab 系统：一级主分类 + 二级子分类 + 标签片 */
+export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
+  // 当前选中的主分类（一级 Tab）
+  const [activeParent, setActiveParent] = useState<number | null>(null);
+  // 当前选中的子分类（二级 Tab）
+  const [activeChild, setActiveChild] = useState<number | null>(null);
+  // 当前子分类下的标签列表（懒加载）
+  const [slices, setSlices] = useState<Slice[]>([]);
+  // 标签加载状态
   const [loading, setLoading] = useState(false);
+  // 搜索关键词
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // 展开时懒加载所有子类型的片段
-  const handleToggle = () => {
-    if (expanded) {
-      setExpanded(false);
+  // 提取根级主分类（parent_id === null），按排序字段排列
+  const rootTypes = types
+    .filter((t) => t.parent_id === null)
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  // 提取当前主分类下的子分类
+  const childTypes = activeParent
+    ? types
+        .filter((t) => t.parent_id === activeParent)
+        .sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+
+  // 挂载或 types 变更时自动选中第一个主分类
+  useEffect(() => {
+    if (rootTypes.length > 0 && activeParent === null) {
+      setActiveParent(rootTypes[0].id);
+    }
+  }, [rootTypes, activeParent]);
+
+  // 主分类切换后自动选中第一个子分类
+  useEffect(() => {
+    if (childTypes.length > 0) {
+      setActiveChild(childTypes[0].id);
+    } else {
+      setActiveChild(null);
+      setSlices([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeParent]);
+
+  // 子分类切换后懒加载对应标签列表
+  useEffect(() => {
+    if (activeChild === null) {
+      setSlices([]);
       return;
     }
-    setExpanded(true);
-    if (type.children.length === 0) return;
-
     setLoading(true);
-    // 并行加载所有子类型的片段
-    const loadPromises = type.children.map((child) =>
-      api
-        .listSlicesByType(child.id)
-        .then((res) => ({ childId: child.id, slices: res.data.list }))
-        .catch(() => ({ childId: child.id, slices: [] as Slice[] })),
-    );
-    Promise.all(loadPromises)
-      .then((results) => {
-        const newSlices: Record<number, Slice[]> = {};
-        for (const r of results) {
-          newSlices[r.childId] = r.slices;
-        }
-        setChildSlices((prev) => ({ ...prev, ...newSlices }));
-      })
+    api
+      .listSlicesByType(activeChild)
+      .then((res) => setSlices(res.data.list))
+      .catch(() => setSlices([]))
       .finally(() => setLoading(false));
+  }, [activeChild]);
+
+  // 按搜索关键词过滤标签（匹配 content 与 translated_content）
+  const filteredSlices = searchQuery
+    ? slices.filter(
+        (s) =>
+          s.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          s.translated_content?.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : slices;
+
+  // 一级 Tab 样式
+  const primaryTabSx = {
+    minWidth: 'auto',
+    px: 1.5,
+    py: 0.5,
+    fontSize: '0.8rem',
+    minHeight: 36,
   };
 
-  // 若无子类型，直接将本类型的切片平铺展示
-  const hasChildren = type.children.length > 0;
+  // 二级 Tab 样式（字号略小）
+  const secondaryTabSx = {
+    minWidth: 'auto',
+    px: 1.5,
+    py: 0.5,
+    fontSize: '0.75rem',
+    minHeight: 32,
+  };
 
-  return (
-    <Box sx={{ mb: 1 }}>
-      {/* 分类标题行 — 点击展开/收起 */}
-      <Box
-        onClick={handleToggle}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          cursor: 'pointer',
-          py: 0.75,
-          px: 1,
-          borderRadius: 1,
-          '&:hover': { bgcolor: '#e3f2fd' },
-          userSelect: 'none',
-        }}
-      >
-        {hasChildren && (
-          expanded ? <ExpandLess fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-            : <ExpandMore fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-        )}
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {type.name}
-        </Typography>
-      </Box>
-
-      {/* 展开后显示子分类区块 */}
-      <Collapse in={expanded}>
-        <Box sx={{ ml: 3, mt: 0.5 }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
-              <CircularProgress size={16} />
-            </Box>
-          ) : hasChildren ? (
-            // 有子类型：按子类型分组展示标签
-            type.children.map((child) => {
-              const slices = childSlices[child.id] || [];
-              return (
-                <Box key={child.id} sx={{ mb: 1.5 }}>
-                  {/* 子分类标签（分隔标题） */}
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      display: 'block',
-                      mb: 0.5,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {child.name}
-                  </Typography>
-                  {/* 子分类下的片段标签 */}
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {slices.length === 0 && !loading ? (
-                      <Typography variant="caption" color="text.disabled">
-                        暂无片段
-                      </Typography>
-                    ) : (
-                      slices.map((s) => (
-                        <Chip
-                          key={s.id}
-                          label={s.content}
-                          size="small"
-                          variant="outlined"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSliceClick(child.name, s);
-                          }}
-                          sx={{
-                            cursor: 'pointer',
-                            borderColor: '#c5cae9',
-                            '&:hover': { bgcolor: '#e3f2fd' },
-                          }}
-                        />
-                      ))
-                    )}
-                  </Box>
-                </Box>
-              );
-            })
-          ) : (
-            // 无子类型：暂无内容
-            <Typography variant="caption" color="text.disabled">
-              暂无子分类
-            </Typography>
-          )}
-        </Box>
-      </Collapse>
-    </Box>
-  );
-}
-
-/** 提示词库面板 — 搜索框 + 分类树，支持全文搜索与按类型浏览两种模式 */
-export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchSlice[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-
-  // 执行搜索
-  const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setResults([]);
-      setHasSearched(false);
-      return;
-    }
-    setSearching(true);
-    setHasSearched(true);
-    try {
-      const res = await api.searchSlices({ q: q.trim(), page_size: 50 });
-      setResults(res.data.list);
-    } catch {
-      setResults([]);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  // 200ms 防抖搜索
-  useEffect(() => {
-    const timer = setTimeout(() => doSearch(query), 200);
-    return () => clearTimeout(timer);
-  }, [query, doSearch]);
-
-  // 清空搜索
-  const handleClear = () => {
-    setQuery('');
-    setResults([]);
-    setHasSearched(false);
+  // 标签片样式
+  const chipSx = {
+    fontSize: '0.82rem',
+    m: 0.25,
+    cursor: 'pointer',
+    borderColor: '#c5cae9',
+    '&:hover': { bgcolor: '#e3f2fd', borderColor: '#1976d2' },
   };
 
   return (
     <Box>
-      {/* 搜索框 */}
+      {/* 搜索栏 — 按关键词过滤当前子分类下的标签 */}
       <TextField
         size="small"
         fullWidth
         placeholder="搜索标签..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
         slotProps={{
           input: {
             startAdornment: (
               <InputAdornment position="start">
-                <Search fontSize="small" sx={{ color: 'text.secondary' }} />
+                <Search fontSize="small" />
               </InputAdornment>
             ),
-            endAdornment: query ? (
+            endAdornment: searchQuery ? (
               <InputAdornment position="end">
-                <IconButton size="small" onClick={handleClear}>
+                <IconButton size="small" onClick={() => setSearchQuery('')}>
                   <Clear fontSize="small" />
                 </IconButton>
               </InputAdornment>
-            ) : null,
-            sx: { bgcolor: '#f8f9fa' },
+            ) : undefined,
           },
         }}
-        sx={{ mb: 1.5 }}
+        sx={{ mb: 1 }}
       />
 
-      {/* 搜索结果列表 */}
-      {hasSearched && (
-        <Box sx={{ mb: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            搜索结果 {searching ? '' : `(${results.length})`}
-          </Typography>
-          {searching ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
-              <CircularProgress size={20} />
-            </Box>
-          ) : results.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              未找到匹配的标签
-            </Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 2 }}>
-              {results.map((s) => (
-                <Chip
-                  key={s.id}
-                  label={s.content}
-                  size="small"
-                  variant="filled"
-                  color="primary"
-                  onClick={() => onSliceClick('搜索结果', s)}
-                  sx={{ cursor: 'pointer' }}
-                />
-              ))}
-            </Box>
-          )}
+      {/* 一级 Tab：主分类（可滚动，隐藏滚动条） */}
+      {rootTypes.length > 0 && (
+        <Box
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 0.5,
+            overflow: 'auto',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          <Tabs
+            value={activeParent ?? rootTypes[0].id}
+            onChange={(_, v) => setActiveParent(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ minHeight: 36 }}
+          >
+            {rootTypes.map((t) => (
+              <Tab key={t.id} label={t.name} value={t.id} sx={primaryTabSx} />
+            ))}
+          </Tabs>
         </Box>
       )}
 
-      {/* 分类树（无搜索时显示） */}
-      {!hasSearched &&
-        (types.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            暂无提示词类型数据
-          </Typography>
-        ) : (
-          types.map((t) => (
-            <TypeNode
-              key={t.id}
-              type={t}
-              onSliceClick={onSliceClick}
+      {/* 二级 Tab：子分类（可滚动，隐藏滚动条） */}
+      {childTypes.length > 0 && (
+        <Box
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 1,
+            overflow: 'auto',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          <Tabs
+            value={activeChild ?? childTypes[0].id}
+            onChange={(_, v) => setActiveChild(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ minHeight: 32 }}
+          >
+            {childTypes.map((t) => (
+              <Tab key={t.id} label={t.name} value={t.id} sx={secondaryTabSx} />
+            ))}
+          </Tabs>
+        </Box>
+      )}
+
+      {/* 标签片区域：加载中 / 空状态 / 标签列表 */}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : filteredSlices.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+          暂无标签
+        </Typography>
+      ) : (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
+          {filteredSlices.map((s) => (
+            <Chip
+              key={s.id}
+              label={s.content}
+              size="medium"
+              variant="outlined"
+              onClick={() =>
+                onSliceClick(
+                  childTypes.find((c) => c.id === activeChild)?.name ?? '',
+                  s,
+                )
+              }
+              sx={chipSx}
             />
-          ))
-        ))}
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

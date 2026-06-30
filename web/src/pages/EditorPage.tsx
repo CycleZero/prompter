@@ -73,6 +73,7 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
 
 interface SortableRegionProps {
   region: { region_id: number; region_name: string; slices: ActiveSlice[] };
+  activeId: string | null;
   onRemoveRegion: (regionId: number) => void;
   onRemoveSlice: (regionId: number, sliceId: number) => void;
   onRegionNameChange: (regionId: number, name: string) => void;
@@ -81,6 +82,7 @@ interface SortableRegionProps {
 /** 可拖拽的 Region 分组框 — 含拖拽手柄、可编辑标题、内部片段排序 */
 function SortableRegion({
   region,
+  activeId,
   onRemoveRegion,
   onRemoveSlice,
   onRegionNameChange,
@@ -101,6 +103,7 @@ function SortableRegion({
 
   const style = {
     transform: CSS.Transform.toString(transform),
+    transition: activeId ? transition : undefined,
     zIndex: transform ? 1 : undefined,
   };
 
@@ -521,6 +524,7 @@ export function EditorPage() {
                     <SortableRegion
                       key={region.region_id}
                       region={region}
+                      activeId={activeId}
                       onRemoveRegion={handleRemoveRegion}
                       onRemoveSlice={handleRemoveSlice}
                       onRegionNameChange={handleRegionNameChange}

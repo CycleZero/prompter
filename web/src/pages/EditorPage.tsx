@@ -15,6 +15,7 @@ import {
 import { Save, Close, Add, DragIndicator } from '@mui/icons-material';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   useSensor,
@@ -49,8 +50,9 @@ function SortableSlice({ slice, regionId, onRemove }: SortableSliceProps) {
     useSortable({ id: `${regionId}-slice-${slice.slice_id}` });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: transform ? `translate3d(0px, ${transform.y}px, 0)` : undefined,
     transition,
+    opacity: transform ? 0.3 : 1,
   };
 
   return (
@@ -222,6 +224,8 @@ export function EditorPage() {
   const [targetRegionId, setTargetRegionId] = useState(0);
   // Zustand 全局状态
   const { title, setTitle, regions, getPromptPreview } = usePromptStore();
+  // 当前活跃的拖拽项 ID（用于 DragOverlay）
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // 拖拽传感器配置：5px 移动阈值防止误触
   const sensors = useSensors(
@@ -324,8 +328,14 @@ export function EditorPage() {
   // 拖拽排序处理
   // ==========================================================
 
+  /** 拖拽中保持拖拽项原始位置不动（使用 DragOverlay 渲染副本） */
+  const handleDragStart = (event: { active: { id: string | number } }) => {
+    setActiveId(String(event.active.id));
+  };
+
   /** 统一的拖拽处理器 — 根据 active.id 前缀分派 Region 或 Slice 操作 */
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -499,6 +509,7 @@ export function EditorPage() {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
@@ -517,6 +528,13 @@ export function EditorPage() {
                   ))}
                 </Box>
               </SortableContext>
+              {/* 拖拽浮层：跟随鼠标的拖拽项副本 */}
+              <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+                {activeId && !activeId.startsWith('region-') ? (
+                  <Chip label={activeId.split('-slice-')[1] || activeId} size="medium"
+                    color="primary" variant="filled" sx={{ fontSize: '0.85rem', py: 0.5, boxShadow: 3 }} />
+                ) : null}
+              </DragOverlay>
             </DndContext>
           )}
         </Paper>

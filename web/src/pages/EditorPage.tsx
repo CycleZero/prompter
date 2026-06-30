@@ -101,7 +101,6 @@ function SortableRegion({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transform ? transition : undefined,
     zIndex: transform ? 1 : undefined,
   };
 

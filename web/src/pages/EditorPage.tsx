@@ -335,7 +335,6 @@ export function EditorPage() {
 
   /** 统一的拖拽处理器 — 根据 active.id 前缀分派 Region 或 Slice 操作 */
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -385,6 +384,8 @@ export function EditorPage() {
         sort_order: targetPos,
       });
     }
+    // 延迟清除拖拽浮层，等 React 完成 state 更新的 re-render 后再移除
+    requestAnimationFrame(() => setActiveId(null));
   };
 
   // ==========================================================

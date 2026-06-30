@@ -104,12 +104,13 @@ type ActivePromptResponse struct {
 // Record DTOs
 // ============================================================
 
-// RecordSliceResponse 记录详情中单个 Slice 的展开
+// RecordSliceResponse 记录详情中单个 Slice 的展开（快照数据）
 type RecordSliceResponse struct {
-	SliceID    uint    `json:"slice_id"`
-	Content    string  `json:"content"`
-	CustomText *string `json:"custom_text"`
-	SortOrder  int     `json:"sort_order"`
+	SliceID           uint    `json:"slice_id"`
+	Content           string  `json:"content"`
+	TranslatedContent string  `json:"translated_content"`
+	CustomText        *string `json:"custom_text"`
+	SortOrder         int     `json:"sort_order"`
 }
 
 // RecordRegionResponse 记录详情中的 Region 分组

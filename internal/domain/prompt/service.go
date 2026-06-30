@@ -458,25 +458,23 @@ func (s *PromptService) GetRecord(c *gin.Context) {
 			return
 		}
 
-		// 构建 Slice 响应列表（解析 Slice 原文，处理自定义文本覆盖）
+		// 构建 Slice 响应列表（直接使用快照数据，无需查询源表）
 		sliceResponses := make([]RecordSliceResponse, 0, len(regionSliceRefs))
 		for _, rs := range regionSliceRefs {
-			// 从源表查询 Slice 原文
-			content := ""
+			// 使用快照中的原文和翻译，即使源 Slice 后续被修改也不影响 Record
+			content := rs.Content
 			customText := rs.CustomText
-			if sl, err := s.sliceBiz.GetByID(rs.SliceID); err == nil {
-				content = sl.Content
-			}
 			// 若有自定义文本覆盖，使用自定义文本
 			if customText != nil {
 				content = *customText
 			}
 
 			sliceResponses = append(sliceResponses, RecordSliceResponse{
-				SliceID:    rs.SliceID,
-				Content:    content,
-				CustomText: customText,
-				SortOrder:  rs.SortOrder,
+				SliceID:           rs.SliceID,
+				Content:           content,
+				CustomText:        customText,
+				TranslatedContent: rs.TranslatedContent,
+				SortOrder:         rs.SortOrder,
 			})
 		}
 

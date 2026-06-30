@@ -110,11 +110,13 @@ func (b *RecordBiz) PersistFromActive(uuid string) (*model.PromptRecord, error) 
 				SortOrder: globalOrder,
 			})
 
-			// 5d. 构建 PromptRecordRegionSlice 用于持久化
+			// 5d. 构建 PromptRecordRegionSlice 快照（保存持久化时刻的原文和翻译）
 			payload.Slices = append(payload.Slices, model.PromptRecordRegionSlice{
-				SliceID:    dto.SliceID,
-				SortOrder:  dto.SortOrder,
-				CustomText: dto.CustomText,
+				SliceID:           dto.SliceID,
+				SortOrder:         dto.SortOrder,
+				Content:           slice.Content,
+				TranslatedContent: slice.TranslatedContent,
+				CustomText:        dto.CustomText,
 			})
 			globalOrder++
 		}

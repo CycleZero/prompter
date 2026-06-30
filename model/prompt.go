@@ -58,12 +58,14 @@ type PromptRecordRegion struct {
 	SortOrder int  `gorm:"type:int;default:0;comment:Region在Record中的显示顺序" json:"sort_order"`
 }
 
-// PromptRecordRegionSlice 记录中某个 Region 下的 Slice 引用
-// 一个 Slice 可被多个 Record 或同一 Record 的多个 Region 引用
+// PromptRecordRegionSlice 记录中某个 Region 下的 Slice 引用（快照）
+// 保存持久化时刻的 Slice 原文和翻译，即使后续 Slice 被修改，Record 内容不变
 type PromptRecordRegionSlice struct {
 	gorm.Model
-	RecordRegionID uint    `gorm:"index;not null;comment:所属RecordRegion的ID" json:"record_region_id"`
-	SliceID        uint    `gorm:"not null;comment:引用的Slice ID" json:"slice_id"`
-	SortOrder      int     `gorm:"type:int;default:0;comment:Slice在Region内的顺序" json:"sort_order"`
-	CustomText     *string `gorm:"type:text;comment:用户覆盖的文本(NULL=使用原文)" json:"custom_text"`
+	RecordRegionID    uint    `gorm:"index;not null;comment:所属RecordRegion的ID" json:"record_region_id"`
+	SliceID           uint    `gorm:"not null;comment:引用的Slice ID" json:"slice_id"`
+	SortOrder         int     `gorm:"type:int;default:0;comment:Slice在Region内的顺序" json:"sort_order"`
+	Content           string  `gorm:"type:text;comment:持久化时的原文快照" json:"content"`
+	TranslatedContent string  `gorm:"type:text;comment:持久化时的翻译快照" json:"translated_content"`
+	CustomText        *string `gorm:"type:text;comment:用户覆盖的文本(NULL=使用原文)" json:"custom_text"`
 }

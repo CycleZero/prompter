@@ -20,7 +20,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   horizontalListSortingStrategy,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -190,7 +190,7 @@ function SortableRegion({
       >
         <SortableContext
           items={sliceIds}
-          strategy={verticalListSortingStrategy}
+          strategy={rectSortingStrategy}
         >
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {region.slices.length === 0 ? (

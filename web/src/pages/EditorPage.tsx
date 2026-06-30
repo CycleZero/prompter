@@ -99,7 +99,7 @@ function SortableRegion({
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(region.region_name);
 
-  const sliceIds = region.slices.map((s, i) => `${region.region_id}-slice-${s.slice_id}-${i}`);
+  const sliceIds = region.slices.map((s) => `${region.region_id}-slice-${s.slice_id}`);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -367,10 +367,10 @@ export function EditorPage() {
       if (!region) return;
 
       const oldIndex = region.slices.findIndex(
-        (s) => `slice-${s.slice_id}` === active.id,
+        (s) => `${regionId}-slice-${s.slice_id}` === active.id,
       );
       const newIndex = region.slices.findIndex(
-        (s) => `slice-${s.slice_id}` === over.id,
+        (s) => `${regionId}-slice-${s.slice_id}` === over.id,
       );
 
       if (oldIndex !== -1 && newIndex !== -1) {

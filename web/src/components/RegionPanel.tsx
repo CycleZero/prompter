@@ -38,10 +38,9 @@ export function RegionPanel({ types, onSliceClick }: RegionPanelProps) {
     .filter((t) => t.parent_id === null)
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  // 提取当前主分类下的子分类
+  // 提取当前主分类下的子分类（从 children 数组获取，非扁平 filter）
   const childTypes = activeParent
-    ? types
-        .filter((t) => t.parent_id === activeParent)
+    ? (rootTypes.find((t) => t.id === activeParent)?.children ?? [])
         .sort((a, b) => a.sort_order - b.sort_order)
     : [];
 
